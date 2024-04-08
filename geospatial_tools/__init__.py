@@ -1,3 +1,3 @@
 
-from geospatial_tools.geospatial_tools import geotools 
+from .geotools import Raster, imtools, Gdf, Basics 
 
