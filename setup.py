@@ -27,7 +27,6 @@ setuptools.setup(
         'rasterio',
         'scipy',
         'toolz',
-        'gdal=3.5',
         'scipy',
         'contextily'
       ],

@@ -6,6 +6,7 @@ A set of handy functions for geospatial analysis
 ```
 python -m pip install --no-cache-dir -U git+https://github.com/GiorgioMeschi/geospatial_tools
 ```
+please note you will need to install gdal
 
 # imports 
 import 4 main modules 
