@@ -716,7 +716,7 @@ class Basics:
 
 
 @dataclass
-class imtools:
+class Imtools:
 
     def plot_table(self, df: pd.DataFrame, title: str, outpath: str = None, 
                    fontsize = 11, figsize = (10,8), dpi = 200, cellColours: np.array = None,

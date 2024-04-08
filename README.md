@@ -18,7 +18,7 @@ from geospatial_tools import geotools as gt
 # gt contains a model Raster with function of raster and arrays
 gtras = gt.Raster() # tools for dealing with rasters
 gtgdf = gt.Gdf()    # tools for dealing with dataframe and geodataframe
-gtim = gt.imtools() # some useful function related to plotting
+gtim = gt.Imtools() # some useful function related to plotting
 gts = gt.Basics()   # a pool of basics tools using toolz library 
 
 
