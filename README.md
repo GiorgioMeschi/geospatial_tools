@@ -13,7 +13,7 @@ import 4 main modules
 
 ```python
 
-from geospatial_tools.geospatial_tools import geotools as gt
+from geospatial_tools import geotools as gt
 
 # gt contains a model Raster with function of raster and arrays
 gtras = gt.Raster() # tools for dealing with rasters
