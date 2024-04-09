@@ -124,20 +124,31 @@ reference = gtras.read_1band(reference_file)
 probabilities = gtras.read_1band(prob_reprojected)
 
 # mask and plot
+
+# why to use this function for plottong:
+# 1) quick styling of figure 
+# 2) possibility to make categorical palette passing only bounds and colors 
+
+# plot the array using categorical palette 
 prob_arr_to_plot = np.where(reference == -9999, np.nan, probabilities/100)
-gtras.plot_raster(prob_arr_to_plot, cmap = 'nipy_spectral', shrink_legend = 0.6, dpi = 500, 
-                    title = 'Average annual probability of wildfire' )
+gtras.plot_raster(prob_arr_to_plot, shrink_legend = 0.6, dpi = 500, 
+                    title = 'Average annual probability of wildfire',
+                    # parameters for cateogrical plot
+                    array_classes = [0, 0.01, 0.05, 0.08, 1],
+                    array_colors = ['blue', 'yellow', 'orange', 'red'],
+                    array_names = ['low', 'medium', 'high', 'very high'] )
 
 
 # this works but I want to plot it passing a rasterio object instead of array, in order to add to the plot some geodataframes
 
 # since no data of original array are not codified correctly, I save the array to plot and open as rasterio object
-# asve the reprojected files with the parameters I want
+# save the reprojected files with the parameters I want
 gtras.save_raster_as(prob_arr_to_plot, prob_reprojected, reference_file = reference_file, clip_extent = True, dtype = 'float32') # specify dtype to not be integer
 probabilities_raster = rio.open(prob_reprojected) # now nodata are correctly codified (as reference file thanks to clip extent paramenter)
 
+# note here i m passing a cmpa, so linear palette is applied
 fig, ax = gtras.plot_raster(probabilities_raster, cmap = 'nipy_spectral', shrink_legend = 0.6, dpi = 500, 
-                            title = 'Average annual probability of wildfire' )
+                            title = 'Average annual probability of wildfire')
 
 
 # add to the plot the boundaries and some wildfires
@@ -155,6 +166,9 @@ gdf2 = gpd.read_file(f2)
 gdf1 = gdf1.to_crs(working_crs)
 gdf2 = gdf2.to_crs(working_crs)
 
+
+# note is cmpa is set to none facecoler is empty, otherwise linear cmpa is used. 
+# also in this case quick categorical palette can be define dwith the same 3 input seen for plotting the raster
 # add to image 2 dataframes without cmap, only contours
 tuples = [(gdf2, 'id_0', {'cmap' : None, 'edgecolor': 'white', 'colorbar' : False, 'linewidth': 0.5, 'linestyle': ':'}), 
           (gdf1, 'area_ha', {'cmap' : None, 'edgecolor': 'red', 'colorbar' : False, 'linewidth': 0.5})]
