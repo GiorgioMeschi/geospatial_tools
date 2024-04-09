@@ -96,3 +96,75 @@ dir(gts)
  'save_dict_to_json',
  'set_logging
 ```
+
+# ECAMPLE 1: reproject a raster as reference file and plot it adding 2 shapefiles to the figure
+```python
+
+import rasterio as rio
+import numpy as np
+import geopandas as gpd
+
+from geospatial_tools import geotools as gt
+
+gtras = gt.Raster() # tools for dealing with rasters
+gtgdf = gt.Gdf()    # tools for dealing with dataframe and geodataframe
+
+
+# input 
+probabilities_to_plot = f'/share/home/farzad/World_bank/Europe/Bulgaria/Risk/v5/future/SSP585/SSP585_UKESM1-0-LL/2050/allcat/allcat_average_annual_probability.tif'
+reference_file = f'/share/home/farzad/World_bank/Europe/Bulgaria/DEM/dem_3035.tif'
+# output
+prob_reprojected = f'/share/home/farzad/World_bank/Europe/Bulgaria/Risk/v5/future/SSP585/SSP585_UKESM1-0-LL/2050/allcat/temp.tif'
+
+gtras.reproject_raster_as(probabilities_to_plot,
+                          prob_reprojected,
+                          reference_file = reference_file)
+
+reference = gtras.read_1band(reference_file)
+probabilities = gtras.read_1band(prob_reprojected)
+
+# mask and plot
+prob_arr_to_plot = np.where(reference == -9999, np.nan, probabilities/100)
+gtras.plot_raster(prob_arr_to_plot, cmap = 'nipy_spectral', shrink_legend = 0.6, dpi = 500, 
+                    title = 'Average annual probability of wildfire' )
+
+
+# this works but I want to plot it passing a rasterio object instead of array, in order to add to the plot some geodataframes
+
+# since no data of original array are not codified correctly, I save the array to plot and open as rasterio object
+# asve the reprojected files with the parameters I want
+gtras.save_raster_as(prob_arr_to_plot, prob_reprojected, reference_file = reference_file, clip_extent = True, dtype = 'float32') # specify dtype to not be integer
+probabilities_raster = rio.open(prob_reprojected) # now nodata are correctly codified (as reference file thanks to clip extent paramenter)
+
+fig, ax = gtras.plot_raster(probabilities_raster, cmap = 'nipy_spectral', shrink_legend = 0.6, dpi = 500, 
+                            title = 'Average annual probability of wildfire' )
+
+
+# add to the plot the boundaries and some wildfires
+# reading geodataaframes
+
+
+f1 = f'/share/home/farzad/World_bank/Europe/Bulgaria/Fires/fires.shp'
+f2 = f'/share/home/farzad/World_bank/Europe/Bulgaria/Social_vulnerabilities/national_boundaries/jf267dx3808.shp'
+
+working_crs = 'EPSG:3035'
+
+gdf1 = gpd.read_file(f1)
+gdf2 = gpd.read_file(f2)
+
+gdf1 = gdf1.to_crs(working_crs)
+gdf2 = gdf2.to_crs(working_crs)
+
+# add to image 2 dataframes without cmap, only contours
+tuples = [(gdf2, 'id_0', {'cmap' : None, 'edgecolor': 'white', 'colorbar' : False, 'linewidth': 0.5, 'linestyle': ':'}), 
+          (gdf1, 'area_ha', {'cmap' : None, 'edgecolor': 'red', 'colorbar' : False, 'linewidth': 0.5})]
+
+ax = gtgdf.plot_sequential_gdf(ax, *tuples)
+
+fig
+
+# remove reproj file
+os.remove(prob_reprojected)
+
+```
+
