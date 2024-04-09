@@ -517,7 +517,7 @@ class Gdf:
         
         cmap = 'viridis', figsize = (10,8), edgecolor = 'black', title = '', xy = (0.5, 1.1),
         array_classes = [], array_colors = [], array_names = [], shrink_legend = None, dpi = 200, 
-        vmax = None, outpath = None, colorbar = True
+        vmax = None, outpath = None, colorbar = True, linewidth = 1, alpha = 1, linestyle = '-'
         
         example with discrete palette:
         array_classes = [-1,-0.8, -0.2, 0, 0.5, 1.5, 8],  # all the values including nodata 
@@ -528,7 +528,7 @@ class Gdf:
         # define default settings stored in third position of tuple
         default_settings = dict(cmap = 'viridis', figsize = (10,8), edgecolor = 'black', title = '', xy = (0.5, 1.1),
         array_classes = [], array_colors = [], array_names = [], shrink_legend = None, dpi = 200, 
-        vmax = None, outpath = None, colorbar = True)
+        vmax = None, outpath = None, colorbar = True, linewidth = 1, alpha = 1, linestyle = '-')
 
         for mytuple in tuples:
             
@@ -540,7 +540,7 @@ class Gdf:
 
             # extract all the elements for plotting
             gdf, colname, _ = mytuple
-            cmap, figsize, edgecolor, title, xy, array_classes, array_colors, array_names, shrink_legend, dpi, vmax, outpath, colorbar = default.values()
+            cmap, figsize, edgecolor, title, xy, array_classes, array_colors, array_names, shrink_legend, dpi, vmax, outpath, colorbar, linewidth, alpha, linestyle = default.values()
 
             if len(array_classes) > 0 and len(array_colors) > 0 and len(array_names) > 0:
 
@@ -564,9 +564,9 @@ class Gdf:
                 gdf.plot(colname, cmap = cmap, norm = norm, edgecolor = edgecolor,
                             figsize = figsize, legend = colorbar,
                             legend_kwds = legend_kwds, 
-                            ax = ax,
+                            ax = ax, linewidth = linewidth, alpha = alpha, linestyle = linestyle)
                             #legend_labels = classes_names
-                            )  
+                            
                 if colorbar:
                     cbar = ax.get_figure().get_axes()[1]
                     cbar.set_yticklabels(array_names)
@@ -585,7 +585,7 @@ class Gdf:
                     legend_kwds = {'shrink': shrink_legend, 'ticks': ticks_postions} if shrink_legend is not None else {'ticks': ticks_postions}  
                     gdf.plot(colname, cmap = cmap, edgecolor = edgecolor, figsize = figsize, legend = colorbar,
                                 legend_kwds = legend_kwds, vmax = vmax,
-                                ax = ax, facecolor = facecolor)   
+                                ax = ax, facecolor = facecolor, linewidth = linewidth, alpha = alpha, linestyle = linestyle)   
 
                     if colorbar:           
                         cbar = ax.get_figure().get_axes()[1]
@@ -596,7 +596,7 @@ class Gdf:
                     legend_kwds = {'shrink': shrink_legend} if shrink_legend is not None else None
 
                     gdf.plot(colname, cmap = cmap, edgecolor = edgecolor, figsize = figsize, legend = colorbar,
-                                legend_kwds = legend_kwds, ax = ax, facecolor = facecolor)  
+                                legend_kwds = legend_kwds, ax = ax, facecolor = facecolor, linewidth = linewidth, alpha = alpha, linestyle = linestyle)  
 
 
             ax.set_axis_off()
@@ -922,25 +922,6 @@ class Imtools:
         return fig, ax
 
 
-
-
-
-#%%
-
-# f1 = f'/share/home/farzad/World_bank/Europe/Croatia/Fires/fires.shp'
-# f2 = f'/share/home/farzad/World_bank/Europe/Croatia/Social_vulnerabilities/national_boundaries/level1.shp'
-
-# gdf1 = gpd.read_file(f1)
-# gdf2 = gpd.read_file(f2)
-
-# gdf1 = gdf1.to_crs(gdf2.crs)
-
-# fig,ax = plt.subplots(dpi = 200)
-
-# tuples = [(gdf2, 'id_0', {'cmap' : None, 'colorbar' : False}), 
-#           (gdf1, 'area_ha', {'cmap' : 'inferno', 'edgecolor' : None})]
-
-# ax = plot_sequential_gdf('', ax, *tuples)
 
 
 
