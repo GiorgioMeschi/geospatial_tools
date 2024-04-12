@@ -20,6 +20,7 @@ from rasterio.mask import mask
 from rasterio.merge import merge 
 from matplotlib import colors
 from scipy.ndimage import maximum_filter as maxf2D
+from scipy.ndimage import uniform_filter
 import contextily as cx
 from PIL import Image
 from matplotlib.ticker import FuncFormatter
@@ -313,6 +314,12 @@ class Raster:
         
         return filtered_array
 
+    def average_sliding_windows(array: np.array, windows_size: int = 3) -> np.array:
+        
+        filtered_arr = uniform_filter(array, size=windows_size, mode='constant')
+
+        return filtered_arr
+    
     def average_maps(self, paths_to_average: list[str], shp_country = None) -> np.array:
     
         ''' it takes a list of paths to maps clip them WRT shp file and return the average of them'''
@@ -404,6 +411,45 @@ class Raster:
 
         return batched_array, batch_row_start, batch_row_finish
 
+    def contigency_matrix_on_array(self, xarr, yarr, xymatrix, nodatax, nodatay) -> np.array:
+        '''
+        xarr: 2D array, rows entry of contingency matrix (min class = 1, nodata = nodatax)
+        yarr: 2D array, cols entry of contingency matrix (min class = 1, nodata = nodatax)
+        xymatrix: 2D array, contingency matrix
+        nodatax1: value for no data in xarr
+        nodatax2: value for no data in yarr
+        '''
+
+
+        if np.isnan(np.array(nodatax)) == True:
+            xarr = np.where(np.isnan(xarr)==True, 999999, xarr)
+            nodatax = 999999
+        
+        if np.isnan(np.array(nodatay)) == True:
+            yarr = np.where(np.isnan(yarr)==True, 999999, yarr)
+            nodatay = 999999
+
+        # if arr have nan 8differenct from passed nodata), mask it with lowest class
+        xarr = np.where(np.isnan(xarr)==True, 1, xarr)
+        yarr = np.where(np.isnan(yarr)==True, 1, yarr)
+
+        # convert to int
+        xarr = xarr.astype(int)
+        yarr = yarr.astype(int)
+
+        mask = np.where(((xarr == nodatax) | (yarr == nodatay)), 0, 1) # mask nodata   
+
+        # put lowest class in place of no data
+        yarr[~mask] = 1
+        xarr[~mask] = 1
+
+        # apply contingency matrix
+        output = xymatrix[ xarr - 1, yarr - 1]
+
+        # mask out no data
+        output[~mask] = 0
+
+        return output
 
 
 @dataclass

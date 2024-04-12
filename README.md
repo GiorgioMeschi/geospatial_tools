@@ -33,8 +33,10 @@ dir(gtras)
 ```
 
 'average_maps',
+'average_sliding_windows'
 'batch_by_rows',
 'categorize_raster',
+'contigency_matrix_on_array'
 'get_lat_lon_arrays_from_raster',
 'max_sliding_windows',
 'merge_rasters',
