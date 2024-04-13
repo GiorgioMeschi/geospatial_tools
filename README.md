@@ -128,8 +128,8 @@ probabilities = gtras.read_1band(prob_reprojected)
 # mask and plot
 
 # why to use this function for plottong:
-# 1) quick styling of figure 
-# 2) possibility to make categorical palette passing only bounds and colors 
+# 1) quick styling of figure (default clean style) 
+# 2) possibility to make categorical palette passing only bounds, color and classes names
 
 # plot the array using categorical palette 
 prob_arr_to_plot = np.where(reference == -9999, np.nan, probabilities/100)
@@ -141,7 +141,7 @@ gtras.plot_raster(prob_arr_to_plot, shrink_legend = 0.6, dpi = 500,
                     array_names = ['low', 'medium', 'high', 'very high'] )
 
 
-# this works but I want to plot it passing a rasterio object instead of array, in order to add to the plot some geodataframes
+# this works well but I want to plot it passing a rasterio object instead of array, in order to add to the plot some geodataframes
 
 # since no data of original array are not codified correctly, I save the array to plot and open as rasterio object
 # save the reprojected files with the parameters I want
@@ -184,3 +184,77 @@ os.remove(prob_reprojected)
 
 ```
 
+# ECAMPLE 2: perform multiple operations on arrays
+```python
+
+from geospatial_tools import geotools as gt
+
+import json
+import numpy as np
+
+gtras = gt.Raster() # tools for dealing with rasters
+
+# in this example:
+# get a wildfire susceptibility with values from 0 to 1
+# find thresolds using distribution of values in burned areas to categorize it
+# aggregate a vegetation raster in 4 classes of fuel types
+# create an hazard layer applying a contingency matrix among susceptibility adn ful type
+
+# inputs
+susc_path = f'.tif'
+veg_path = f'.tif'
+mapping_path = f'.json'
+fires = f'.shp'
+out_hazard_file = '.tif'
+
+# json contains:
+# {
+#     "20": "3",
+#     "30": "1",
+#     "40": "1",
+#     "60": "1",
+#     "90": "1",
+#     "100": "1",
+#     "111": "4",
+#     "112": "2",
+#     "113": "4",
+#     "114": "2",
+#     "115": "4",
+#     "116": "2",
+#     "121": "2",
+#     "122": "2",
+#     "123": "2",
+#     "124": "2",
+#     "125": "2",
+#     "126": "2",
+#     "50": "1",
+#     "70": "1",
+#     "80": "1",
+#     "200": "1",
+#     "255": "1",
+#     "0": "1"
+# }
+
+# create a matrix 3 times 4 (susc row entries, ft col entries)
+matrix = np.array([[1, 4, 7, 10],
+                    [2, 5, 8, 11],
+                    [3, 6, 9, 12]])
+
+# open susc, find thresholds, categorize, create fuel type, apply contingency matrix, finally save output
+susc = gtras.read_1band(susc_path)
+fires_arr = gtras.rasterize_gdf_as(gpd.read_file(fires), susc_path)
+susc_clip = np.where(fires_arr == 1, susc, np.nan)
+threasholds = np.nanquantile( susc_clip[susc_clip>0], [0.01, 0.2]) 
+susc_cl = gtras.categorize_raster(susc, threasholds, nodata = -1)
+veg = gtras.read_1band(veg_path)
+mapping = json.load(open(mapping_path))
+ft = gtras.remap_raster(veg, mapping)
+hazard = gtras.contigency_matrix_on_array(susc_cl, ft, matrix, nodatax = 0, nodatay = 0)
+gtras.save_raster_as(hazard, out_hazard_file, reference_file = susc_path, dtype = np.int8(), nodata = 0)
+
+# view it quickly continuous palette
+for data in [susc_cl, ft, hazard]:
+    gtras.plot_raster(data)
+
+
+```

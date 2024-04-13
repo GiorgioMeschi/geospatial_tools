@@ -440,14 +440,14 @@ class Raster:
         mask = np.where(((xarr == nodatax) | (yarr == nodatay)), 0, 1) # mask nodata   
 
         # put lowest class in place of no data
-        yarr[~mask] = 1
-        xarr[~mask] = 1
+        yarr[mask == 0] = 1
+        xarr[mask == 0] = 1
 
         # apply contingency matrix
         output = xymatrix[ xarr - 1, yarr - 1]
 
         # mask out no data
-        output[~mask] = 0
+        output[mask == 0] = 0
 
         return output
 
