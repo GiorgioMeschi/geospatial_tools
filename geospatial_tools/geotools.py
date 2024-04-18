@@ -345,7 +345,7 @@ class Raster:
         '''
         
         try:
-            burned = Raster().rasterize_numerical_feature(gdf, reference_file)
+            burned = Raster().rasterize_gdf_as(gdf, reference_file)
             clipped_img = np.where(burned == 1, array, 0)
             clipped_img = clipped_img.astype(int)
             # burned pixels
