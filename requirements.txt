@@ -1,0 +1,9 @@
+matplotlib
+numpy
+pandas
+geopandas
+rasterio
+scipy
+toolz
+scipy
+contextily
