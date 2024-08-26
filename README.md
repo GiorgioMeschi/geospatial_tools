@@ -9,7 +9,7 @@ python -m pip install --no-cache-dir -U git+https://github.com/GiorgioMeschi/geo
 please note you will need to install gdal
 
 # imports 
-import 4 main modules 
+import 5 main modules 
 
 ```python
 
@@ -112,7 +112,7 @@ dir(gt.Analysis())
 ```
 
 
-# ECAMPLE 1: reproject a raster as reference file and plot it adding 2 shapefiles to the figure
+# EXAMPLE 1: reproject a raster as reference file and plot it adding 2 shapefiles to the figure
 ```python
 
 import rasterio as rio
@@ -195,7 +195,7 @@ os.remove(prob_reprojected)
 
 ```
 
-# ECAMPLE 2: perform multiple operations on arrays
+# EXAMPLE 2: perform multiple operations on arrays
 ```python
 
 from geospatial_tools import geotools as gt
