@@ -99,6 +99,19 @@ dir(gts)
  'set_logging
 ```
 
+```python
+dir(gt.Analysis())
+```
+
+```
+'eval_annual_susc_thresholds',
+'hazard_12cl_assesment',
+'plot_susc_with_bars',
+'plot_training_and_test_dfs'
+
+```
+
+
 # ECAMPLE 1: reproject a raster as reference file and plot it adding 2 shapefiles to the figure
 ```python
 
@@ -111,12 +124,12 @@ from geospatial_tools import geotools as gt
 gtras = gt.Raster() # tools for dealing with rasters
 gtgdf = gt.Gdf()    # tools for dealing with dataframe and geodataframe
 
-
+userp = ''
 # input 
-probabilities_to_plot = f'/share/home/farzad/World_bank/Europe/Bulgaria/Risk/v5/future/SSP585/SSP585_UKESM1-0-LL/2050/allcat/allcat_average_annual_probability.tif'
-reference_file = f'/share/home/farzad/World_bank/Europe/Bulgaria/DEM/dem_3035.tif'
+probabilities_to_plot = f'{userp}/World_bank/Europe/Bulgaria/Risk/v5/future/SSP585/SSP585_UKESM1-0-LL/2050/allcat/allcat_average_annual_probability.tif'
+reference_file = f'{userp}/World_bank/Europe/Bulgaria/DEM/dem_3035.tif'
 # output
-prob_reprojected = f'/share/home/farzad/World_bank/Europe/Bulgaria/Risk/v5/future/SSP585/SSP585_UKESM1-0-LL/2050/allcat/temp.tif'
+prob_reprojected = f'{userp}/World_bank/Europe/Bulgaria/Risk/v5/future/SSP585/SSP585_UKESM1-0-LL/2050/allcat/temp.tif'
 
 gtras.reproject_raster_as(probabilities_to_plot,
                           prob_reprojected,
@@ -148,17 +161,15 @@ gtras.plot_raster(prob_arr_to_plot, shrink_legend = 0.6, dpi = 500,
 gtras.save_raster_as(prob_arr_to_plot, prob_reprojected, reference_file = reference_file, clip_extent = True, dtype = 'float32') # specify dtype to not be integer
 probabilities_raster = rio.open(prob_reprojected) # now nodata are correctly codified (as reference file thanks to clip extent paramenter)
 
-# note here i m passing a cmpa, so linear palette is applied
+# note here i m passing a cmap, so linear palette is applied
 fig, ax = gtras.plot_raster(probabilities_raster, cmap = 'nipy_spectral', shrink_legend = 0.6, dpi = 500, 
                             title = 'Average annual probability of wildfire')
 
 
 # add to the plot the boundaries and some wildfires
-# reading geodataaframes
-
-
-f1 = f'/share/home/farzad/World_bank/Europe/Bulgaria/Fires/fires.shp'
-f2 = f'/share/home/farzad/World_bank/Europe/Bulgaria/Social_vulnerabilities/national_boundaries/jf267dx3808.shp'
+# reading geodataframes
+f1 = f'{userp}/World_bank/Europe/Bulgaria/Fires/fires.shp'
+f2 = f'{userp}/World_bank/Europe/Bulgaria/Social_vulnerabilities/national_boundaries/jf267dx3808.shp'
 
 working_crs = 'EPSG:3035'
 
@@ -168,9 +179,9 @@ gdf2 = gpd.read_file(f2)
 gdf1 = gdf1.to_crs(working_crs)
 gdf2 = gdf2.to_crs(working_crs)
 
+# note is cmap is set to none facecoler is empty, otherwise linear cmap is used. 
+# also in this case quick categorical palette can be define with the same 3 input seen for plotting the raster
 
-# note is cmpa is set to none facecoler is empty, otherwise linear cmpa is used. 
-# also in this case quick categorical palette can be define dwith the same 3 input seen for plotting the raster
 # add to image 2 dataframes without cmap, only contours
 tuples = [(gdf2, 'id_0', {'cmap' : None, 'edgecolor': 'white', 'colorbar' : False, 'linewidth': 0.5, 'linestyle': ':'}), 
           (gdf1, 'area_ha', {'cmap' : None, 'edgecolor': 'red', 'colorbar' : False, 'linewidth': 0.5})]
@@ -196,7 +207,7 @@ gtras = gt.Raster() # tools for dealing with rasters
 
 # in this example:
 # get a wildfire susceptibility with values from 0 to 1
-# find thresolds using distribution of values in burned areas to categorize it
+# find thresholds using distribution of values in burned areas to categorize it
 # aggregate a vegetation raster in 4 classes of fuel types
 # create an hazard layer applying a contingency matrix among susceptibility adn ful type
 
@@ -256,5 +267,6 @@ gtras.save_raster_as(hazard, out_hazard_file, reference_file = susc_path, dtype 
 for data in [susc_cl, ft, hazard]:
     gtras.plot_raster(data)
 
+# a similar computation can be addressed using the newly gt.Analysis().hazard_12cl_assesment
 
 ```

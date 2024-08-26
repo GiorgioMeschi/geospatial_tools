@@ -934,7 +934,7 @@ class Imtools:
 
         return new_image
 
-    def ridgeline(data: list[list], overlap = 0.5, fill = True, labels = None, n_points = 1000) -> tuple:
+    def ridgeline(self, data: list[list], overlap = 0.5, fill = True, labels = None, n_points = 1000) -> tuple:
         """
         Creates a standard ridgeline plot.
 
@@ -968,8 +968,262 @@ class Imtools:
         return fig, ax
 
 
+@dataclass
+class Analysis:
+
+    '''
+    Some useful functions combining geospatial and data analysis.
+    The focus is on wildfire susceptibility and hazard processing
+    '''
+
+    def plot_susc_with_bars(self, fires_file: str | gpd.GeoDataFrame, fires_col: str, crs:str, susc_path: str, 
+                            xboxmin: float, yboxmin: float,
+                            threshold1: float, threshold2: float, out_folder: str, year: int = 'Present', month=None,
+                            season = False, total_ba_period = None) -> tuple:
+        
+        '''
+        Plot susceptibility map categorized with fires and histogram showing the burned area per susceptibility class
+        xboxmin and yboxmin define the position of histogram in the figure
+        threshold1 and 2 are the thresholds for categorization of suscpetibility
+        total_ba_period: total burned area in a period at choice, 
+        the percentage of ba per each histogram bar will be computed w.r.t this number as additional info
+        '''
+
+        gtras = Raster()
+
+        def myplot(stats, ax, total_ba_period):
+            '''
+            create bar plot with the stats of burned area per susceptibility class
+            '''
+
+            b = ax.bar(stats['class'], stats.num_of_burned_pixels, width = 0.4, color = 'brown')
+            # eliminate axes visiblity 
+            ax.spines['top'].set_visible(False)
+            ax.spines['right'].set_visible(False)
+            ax.spines['left'].set_visible(False)
+            ax.set_yticks([])
+            ax.set_xticks(stats['class'])
+            alllabels = {1: 'Low', 2:'Medium', 3: 'High'}
+            labels = [alllabels[i] for i in stats['class']]
+            ax.set_xticklabels(labels)
+            ax.tick_params(axis='x', labelsize = 9)
+            ax.annotate('Burned area per susceptibility class [ha]', xytext =  (-0.05, 1.2),
+                        xy = (-0.05, 1.2), fontsize = 7, fontweight = 'bold', xycoords = 'axes fraction')
+
+            for v, y in zip(stats.num_of_burned_pixels, stats['class']):
+                c = 1.05
+                ax.annotate(f'{v:,}', xy = (y, v*c), xytext = (y, v*c), 
+                            ha = 'center', va = 'bottom', fontsize = 8, fontweight = 'bold',
+                            color = 'black', zorder = 15)
+                
+                if total_ba_period is not None:
+                    perc = (v/total_ba_period) * 100
+                    ax.annotate(f'{perc:.0f}%', xy = (y, v/2), xytext = (y, v/2), 
+                                ha = 'center', va = 'bottom', fontsize = 6, fontweight = 'bold',
+                                color = 'white', zorder = 15)
+
+            ax.set_xlim(0.5, 3.5)
+
+            return ax
+        
+        # if file is string, read it
+        if isinstance(fires_file, str): 
+            fires = gpd.read_file(fires_file)
+            # filter only from: 2008 
+            fires[fires_col] = pd.to_datetime(fires[fires_col])
+        else:
+            fires = fires_file
+        
+        fires = fires.to_crs(crs)
+
+        annualfire = fires[(fires[fires_col].dt.year == year)] if year != 'Present' else fires.copy()
+        if season == True:
+            months = list(range(4,11)) if month == 1 else list(range(1, 4)) + list(range(11, 13)) 
+            annualfire = annualfire[(annualfire[fires_col].dt.month.isin(months))] 
+        else:
+            annualfire = annualfire[(annualfire[fires_col].dt.month == month)] if month is not None else annualfire
+        annualsusc = rio.open(susc_path)
 
 
+        fig, ax = plt.subplots(figsize=[12,10], dpi = 250)
+        if len(annualfire) != 0:
+            annualfire.plot(ax = ax, edgecolor = 'black', linewidth = 0.9, facecolor = 'none')
 
+        month_label = "" if month is None else 'Summer' if month == 1 and season == True else 'Winter' if month == 2 and season == True else month 
+        fig, ax = gtras.plot_raster(annualsusc,
+                                    add_to_ax = (fig, ax), 
+                                    # define the settings for discrete plotting
+                                    array_classes = [-2, -0.5, threshold1, threshold2, 1],
+                                    array_colors = ['#0bd1f700','green', 'yellow', 'red'],
+                                    array_names = [ 'no data', 'Low', 'Medium', 'High'],
+                                    title = f'Susceptibility {year} {month_label}',
+                                    shrink_legend=0.4,
+                                )
+        if len(annualfire):
+            ax1 = fig.add_axes([xboxmin, yboxmin, 0.15, 0.13])  # left, bottom, width, height
+
+            # grid = make_grid(2,1)
+            susc_class = gtras.categorize_raster(annualsusc.read(1), 
+                                    thresholds = [threshold1, threshold2],
+                                    nodata = -1)
+        
+            stats = gtras.raster_stats_in_polydiss(susc_class, annualfire, reference_file = susc_path)
+
+            # insert the plot in the same figure and separate axes
+            ax1 = myplot(stats, ax1, total_ba_period)
+
+        os.makedirs(out_folder, exist_ok = True)
+        fig.savefig(f'/{out_folder}/susc_plot_{year}{month}.png', dpi = 200, bbox_inches = 'tight')
+
+        return fig, ax
+
+    def hazard_12cl_assesment(self, susc_path: str, thresholds: list, veg_path: str, mapping_path: str, out_hazard_file: str) -> np.array:
+        '''
+        susc path is the susceptibility file, contineous values, no data -1
+        threasholds are the values to categorize the susceptibility (3classes)
+        veg_path is the input vegetation file
+        mapping_path is the json file with the mapping of vegetation classes (input veg: output FT class from 1 to 4)
+        where FT class are 1: grasslands, 2: broadleaves, 3: shrubs, 4: conifers.
+        out_hazard_file is the output hazard file
+        Return wildfire hazard array
+        '''
+
+        gtras = Raster()
+        matrix = np.array([[1, 4, 7, 10],
+                    [2, 5, 8, 11],
+                    [3, 6, 9, 12]])
+        
+        susc = gtras.read_1band(susc_path)
+        susc_cl = gtras.categorize_raster(susc, thresholds, nodata = -1)
+        veg = gtras.read_1band(veg_path)
+        mapping = json.load(open(mapping_path))
+        ft = gtras.remap_raster(veg, mapping)
+        hazard = gtras.contigency_matrix_on_array(susc_cl, ft, matrix, nodatax = 0, nodatay = 0)
+        gtras.save_raster_as(hazard, out_hazard_file, reference_file = susc_path, dtype = np.int8(), nodata = 0)
+        
+        return hazard
+    
+    def eval_annual_susc_thresholds(self, countries: list[str], years, folder_before_country: str, folder_after_country: str,
+                                    fires_paths: str, path_after_country_avg_susc: str, outfile: str, name_susc_without_year: str = 'Annual_susc_', 
+                                    year_fires_colname: str = 'finaldate', crs = 'EPSG:3035', ping_height: int = 30000):
+
+        '''
+        annual susceptibilities have this structure path:
+        f'{folder_before_country}/{country}/{folder_after_country}/{name_susc_without_year}{year}.tif'
+        fire_path is this one:
+        f'{folder_before_country}/{country}/{fires_paths}'
+        average susceptibility has this path:
+        f'{folder_before_country}/{country}/{path_after_country_avg_susc}'
+        outfile is jsaon path to save thresholds
+        '''
+
+        gtras = Raster()
+
+        values_for_distribution = list()
+        for country in countries:
+            country_paths_to_check = [f'{folder_before_country}/{country}/{folder_after_country}/{name_susc_without_year}{year}.tif'
+                        for year in years]
+            
+            vals_years = list()
+            for path, year in zip(country_paths_to_check, years):
+                print('doing\n', path, year)
+
+                fire_p = f'{folder_before_country}/{country}/{fires_paths}'
+                fires = gpd.read_file(fire_p)
+                fires[year_fires_colname] = pd.to_datetime(fires[year_fires_colname])
+                fires = fires[(fires[year_fires_colname].dt.year == year)]
+                fires = fires.to_crs(crs)
+                if len(fires) != 0:
+                    susc = rio.open(path)
+                    susc_clip, _ = mask(susc, fires.geometry, nodata = -1)
+                    vals_years.append(list(susc_clip[susc_clip != -1]))
+            # flat list
+            vals_years = [item for sublist in vals_years for item in sublist]
+            values_for_distribution.append(vals_years)
+
+        #flat list
+        values_for_distribution = [item for sublist in values_for_distribution for item in sublist]
+
+        lv2 = np.quantile(values_for_distribution, [0.1]) # 90% values in burned areas
+
+        # low threshold is value containing 25% of lowest values in the average susceptibility among the analized period (could be 12+ years)
+        vals = list()
+        for country in countries:
+            average_period_susc = f'{folder_before_country}/{country}/{path_after_country_avg_susc}'
+            susc = gtras.read_1band(average_period_susc)
+            vals.append(list(susc[susc != -1]))
+
+        # flatten list
+        vals = [item for sublist in vals for item in sublist]
+        # compute low threshold, 25%
+        lv1 = np.quantile(vals, 0.25)
+
+        #plot with thresolds
+        fig, ax = plt.subplots(dpi = 200)
+        ax.hist(values_for_distribution, bins = 50, color = 'blue')
+        # plot 2 vertical lines in correscondes to the levels
+        ax.axvline(lv1, color='red', linestyle='dashed', linewidth=1)
+        ax.axvline(lv2, color='red', linestyle='dashed', linewidth=1)
+        # plot annotation for low medium high
+        ax.annotate('Low', (-0.015, ping_height), xytext = (-0.015, ping_height),
+                     xycoords = 'data', color = 'red', ha = 'center', va = 'center')
+        ax.annotate('Medium', ((lv1+lv2)/2, ping_height), xytext = ((lv1+lv2)/2, ping_height),
+                     xycoords = 'data', color = 'red', ha = 'center', va = 'center')
+        ax.annotate('High', (lv2*1.1, ping_height), xytext = (lv2*1.1, ping_height),
+                     textcoords = 'data', color = 'red', ha = 'center', va = 'center')
+        ax.set_xlabel('Susceptibility')
+        ax.set_ylabel('Frequency')
+        ax.set_title('Distribution of Susceptibility values in annual burned areas', fontweight = 'bold', fontsize = 10)
+
+
+        _vals = {'lv1' : lv1, 'lv2' : lv2}
+        # save vals
+        Basics().save_dict_to_json(_vals, outfile)
+
+        return _vals
+    
+    def plot_training_and_test_dfs(self, X_training_p: str, X_test_p: str, Y_training_p:str, Y_test_p:str, cols: list, outfolderpath: str):
+
+        # open x
+        X_train = np.load(X_training_p)
+        X_test = np.load(X_test_p)
+        X_train = pd.DataFrame(X_train, columns = cols)
+        X_test = pd.DataFrame(X_test, columns = cols)
+
+        # open Y
+        Y_train = np.load(Y_training_p)
+        Y_test = np.load(Y_test_p)
+
+        # convert to dataframe
+        Y_train = pd.DataFrame(Y_train, columns = ['label'])
+        Y_test = pd.DataFrame(Y_test, columns = ['label'])
+
+        # filter X when Y is 1
+        X_train = X_train[Y_train['label'] == 1]
+        X_test = X_test[Y_test['label'] == 1]
+
+        # plot coords, lat and lon
+        fig, ax = plt.subplots(figsize=[12,10], dpi = 250)
+        X_train.plot.scatter(x = 'lon', y = 'lat', ax = ax, color = 'blue', s = 0.1, label = 'Training', zorder = 10)
+        X_test.plot.scatter(x = 'lon', y = 'lat', ax = ax, color = 'red', s = 0.1, label = 'Test', zorder = 1)
+        ax.legend()
+        ax.set_title('Training and Test data')
+        # remove axis
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        ax.spines['left'].set_visible(False)
+        ax.spines['bottom'].set_visible(False)
+        ax.set_xticks([])
+        ax.set_yticks([])
+
+        # convert to geo df the 2 dataframes
+        X_train = gpd.GeoDataFrame(X_train, geometry = gpd.points_from_xy(X_train.lon, X_train.lat))
+        X_test = gpd.GeoDataFrame(X_test, geometry = gpd.points_from_xy(X_test.lon, X_test.lat))
+
+        # save the dataframes
+        os.makedirs(outfolderpath, exist_ok = True)
+        X_train.to_file(f'{outfolderpath}/X_train_coords.shp')
+        X_test.to_file(f'{outfolderpath}/X_test_coords.shp')
 
 # %%
+
