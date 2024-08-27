@@ -1176,11 +1176,11 @@ class Analysis:
         ax.set_title('Distribution of Susceptibility values in annual burned areas', fontweight = 'bold', fontsize = 10)
 
 
-        _vals = {'lv1' : lv1, 'lv2' : lv2}
+        _vals = {'lv1' : float(lv1), 'lv2' : float(lv2)}
         # save vals
         Basics().save_dict_to_json(_vals, outfile)
 
-        return _vals
+        return values_for_distribution, _vals
     
     def plot_training_and_test_dfs(self, X_training_p: str, X_test_p: str, Y_training_p:str, Y_test_p:str, cols: list, outfolderpath: str):
 
