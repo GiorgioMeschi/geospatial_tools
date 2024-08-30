@@ -976,22 +976,26 @@ class Analysis:
     The focus is on wildfire susceptibility and hazard processing
     '''
 
-    def plot_susc_with_bars(self, fires_file: str | gpd.GeoDataFrame, fires_col: str, crs:str, susc_path: str, 
-                            xboxmin: float, yboxmin: float,
+    def plot_susc_with_bars(self, fires_file: str | gpd.GeoDataFrame | None, fires_col: str, crs:str, susc_path: str, 
+                            xboxmin_hist: float, yboxmin_hist: float, xboxmin_pie: float, yboxmin_pie: float,
                             threshold1: float, threshold2: float, out_folder: str, year: int = 'Present', month=None,
-                            season = False, total_ba_period = None) -> tuple:
+                            season = False, total_ba_period = None, susc_nodata = -1, pixel_to_ha_factor = 1,
+                            allow_hist = True, allow_pie = True, allow_fires = True) -> tuple:
         
         '''
-        Plot susceptibility map categorized with fires and histogram showing the burned area per susceptibility class
-        xboxmin and yboxmin define the position of histogram in the figure
-        threshold1 and 2 are the thresholds for categorization of suscpetibility
+        Plot susceptibility map categorized with fires and histogram and pie showing statistics.
+        fires analysis can be excluded if fires_file is None
+        fires plot, histogram and pie can be removed tuning allow_* parameters
+        xboxmin and yboxmin define the position of histogram and pie in the figure
+        threshold1 and 2 are the thresholds for categorization of suscpetibility 
         total_ba_period: total burned area in a period at choice, 
         the percentage of ba per each histogram bar will be computed w.r.t this number as additional info
+        pixel_to_ha_factor: conversion from pixel resolution to hectar, if res is 100m factor is 1
         '''
 
         gtras = Raster()
 
-        def myplot(stats, ax, total_ba_period):
+        def histogram(stats, ax, total_ba_period):
             '''
             create bar plot with the stats of burned area per susceptibility class
             '''
@@ -1025,31 +1029,59 @@ class Analysis:
             ax.set_xlim(0.5, 3.5)
 
             return ax
-        
-        # if file is string, read it
-        if isinstance(fires_file, str): 
-            fires = gpd.read_file(fires_file)
-            # filter only from: 2008 
-            fires[fires_col] = pd.to_datetime(fires[fires_col])
-        else:
-            fires = fires_file
-        
-        fires = fires.to_crs(crs)
+            
+        def pie(ax, susc_arr, susc_nodata, pixel_to_ha_factor):
+            '''
+            create pie plot with the extent of susc classes
+            '''
+            # count the number of pixels per class
+            vals, counts = np.unique(susc_arr[susc_arr != susc_nodata], return_counts = True)
+            counts = counts * pixel_to_ha_factor
+            percentage = counts/counts.sum() * 100
+            ax.pie(counts, autopct='%1.0f%%', startangle=90, 
+                    colors = ['green', 'yellow', 'red'], 
+                    textprops={'color':"black", 'size': 9, 'weight':'bold'})
 
-        annualfire = fires[(fires[fires_col].dt.year == year)] if year != 'Present' else fires.copy()
-        if season == True:
-            months = list(range(4,11)) if month == 1 else list(range(1, 4)) + list(range(11, 13)) 
-            annualfire = annualfire[(annualfire[fires_col].dt.month.isin(months))] 
-        else:
-            annualfire = annualfire[(annualfire[fires_col].dt.month == month)] if month is not None else annualfire
+            spines = ['top', 'right', 'left', 'bottom']
+            for s in spines:
+                ax.spines[s].set_visible(False)
+
+            ax.set_yticks([])
+            ax.set_xticks([])
+
+            return ax
+        
+        if fires_file is not None:
+            # if file is string, read it
+            if isinstance(fires_file, str): 
+                fires = gpd.read_file(fires_file)
+                # filter only from: 2008 
+                fires[fires_col] = pd.to_datetime(fires[fires_col])
+            else:
+                fires = fires_file
+            
+            fires = fires.to_crs(crs)
+
+            annualfire = fires[(fires[fires_col].dt.year == year)] if year != 'Present' else fires.copy()
+            if season == True:
+                months = list(range(4,11)) if month == 1 else list(range(1, 4)) + list(range(11, 13)) 
+                annualfire = annualfire[(annualfire[fires_col].dt.month.isin(months))] 
+            else:
+                annualfire = annualfire[(annualfire[fires_col].dt.month == month)] if month is not None else annualfire
+        
         annualsusc = rio.open(susc_path)
 
-
         fig, ax = plt.subplots(figsize=[12,10], dpi = 250)
-        if len(annualfire) != 0:
-            annualfire.plot(ax = ax, edgecolor = 'black', linewidth = 0.9, facecolor = 'none')
+
+        allow_fires = False if fires_file is None else allow_fires
+        if allow_fires:
+            if len(annualfire) != 0:
+                annualfire.plot(ax = ax, edgecolor = 'black', linewidth = 0.9, facecolor = 'none')
 
         month_label = "" if month is None else 'Summer' if month == 1 and season == True else 'Winter' if month == 2 and season == True else month 
+        month_labels_dict = {1: 'Jan', 2: 'Feb', 3: 'Mar', 4: 'Apr', 5: 'May', 6: 'Jun', 7: 'Jul', 8: 'Aug', 9: 'Sep', 10: 'Oct', 11: 'Nov', 12: 'Dec'}
+        if isinstance(month_label, int):
+            month_label = month_labels_dict[month_label]
         fig, ax = gtras.plot_raster(annualsusc,
                                     add_to_ax = (fig, ax), 
                                     # define the settings for discrete plotting
@@ -1059,25 +1091,38 @@ class Analysis:
                                     title = f'Susceptibility {year} {month_label}',
                                     shrink_legend=0.4,
                                 )
-        if len(annualfire):
-            ax1 = fig.add_axes([xboxmin, yboxmin, 0.15, 0.13])  # left, bottom, width, height
+        allow_hist = False if fires_file is None else allow_hist
+        if allow_hist:
+            if len(annualfire):
 
-            # grid = make_grid(2,1)
-            susc_class = gtras.categorize_raster(annualsusc.read(1), 
-                                    thresholds = [threshold1, threshold2],
-                                    nodata = -1)
+                ax1 = fig.add_axes([xboxmin_hist, yboxmin_hist, 0.15, 0.13])  # left, bottom, width, height
+                susc_class = gtras.categorize_raster(annualsusc.read(1), 
+                                        thresholds = [threshold1, threshold2],
+                                        nodata = susc_nodata)
+            
+                stats = gtras.raster_stats_in_polydiss(susc_class, annualfire, reference_file = susc_path)
+                stats['num_of_burned_pixels'] = stats.num_of_burned_pixels * pixel_to_ha_factor
+                # insert the plot in the same figure and separate axes
+                ax1 = histogram(stats, ax1, total_ba_period)
         
-            stats = gtras.raster_stats_in_polydiss(susc_class, annualfire, reference_file = susc_path)
+        if allow_pie:
+            try:
+                susc_class.shape
+            except:
+                susc_class = gtras.categorize_raster(annualsusc.read(1), 
+                                                thresholds = [threshold1, threshold2],
+                                                nodata = susc_nodata)
 
-            # insert the plot in the same figure and separate axes
-            ax1 = myplot(stats, ax1, total_ba_period)
+            #plot pie chart with classes extent
+            ax2 = fig.add_axes([xboxmin_pie, yboxmin_pie, 0.15, 0.15])
+            ax2 = pie(ax2, susc_class, 0, pixel_to_ha_factor)
 
         os.makedirs(out_folder, exist_ok = True)
         fig.savefig(f'/{out_folder}/susc_plot_{year}{month}.png', dpi = 200, bbox_inches = 'tight')
 
         return fig, ax
 
-    def hazard_12cl_assesment(self, susc_path: str, thresholds: list, veg_path: str, mapping_path: str, out_hazard_file: str) -> np.array:
+    def hazard_12cl_assesment(self, susc_path: str, thresholds: list, veg_path: str, mapping_path: str, out_hazard_file: str) -> tuple:
         '''
         susc path is the susceptibility file, contineous values, no data -1
         threasholds are the values to categorize the susceptibility (3classes)
@@ -1085,7 +1130,8 @@ class Analysis:
         mapping_path is the json file with the mapping of vegetation classes (input veg: output FT class from 1 to 4)
         where FT class are 1: grasslands, 2: broadleaves, 3: shrubs, 4: conifers.
         out_hazard_file is the output hazard file
-        Return wildfire hazard array
+       
+        Return: wildfire hazard, susc classes and fuel type array
         '''
 
         gtras = Raster()
@@ -1101,7 +1147,7 @@ class Analysis:
         hazard = gtras.contigency_matrix_on_array(susc_cl, ft, matrix, nodatax = 0, nodatay = 0)
         gtras.save_raster_as(hazard, out_hazard_file, reference_file = susc_path, dtype = np.int8(), nodata = 0)
         
-        return hazard
+        return hazard, susc_cl, ft
     
     def eval_annual_susc_thresholds(self, countries: list[str], years, folder_before_country: str, folder_after_country: str,
                                     fires_paths: str, path_after_country_avg_susc: str, outfile: str, name_susc_without_year: str = 'Annual_susc_', 
@@ -1176,7 +1222,7 @@ class Analysis:
         ax.set_title('Distribution of Susceptibility values in annual burned areas', fontweight = 'bold', fontsize = 10)
 
 
-        _vals = {'lv1' : float(lv1), 'lv2' : float(lv2)}
+        _vals = {'lv1' : lv1[0], 'lv2' : lv2[0]}
         # save vals
         Basics().save_dict_to_json(_vals, outfile)
 
