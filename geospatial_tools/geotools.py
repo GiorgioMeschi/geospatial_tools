@@ -1135,10 +1135,10 @@ class Analysis:
         '''
 
         gtras = Raster()
-        matrix = np.array([[1, 4, 7, 10],
-                    [2, 5, 8, 11],
-                    [3, 6, 9, 12]])
-        
+        matrix = np.array([ [1, 4, 7, 10],
+                            [2, 5, 8, 11],
+                            [3, 6, 9, 12]])
+                
         susc = gtras.read_1band(susc_path)
         susc_cl = gtras.categorize_raster(susc, thresholds, nodata = -1)
         veg = gtras.read_1band(veg_path)
@@ -1190,7 +1190,7 @@ class Analysis:
         #flat list
         values_for_distribution = [item for sublist in values_for_distribution for item in sublist]
 
-        lv2 = np.quantile(values_for_distribution, [0.1]) # 90% values in burned areas
+        lv2 = np.quantile(values_for_distribution, 0.1) # 90% values in burned areas
 
         # low threshold is value containing 25% of lowest values in the average susceptibility among the analized period (could be 12+ years)
         vals = list()
@@ -1203,6 +1203,7 @@ class Analysis:
         vals = [item for sublist in vals for item in sublist]
         # compute low threshold, 25%
         lv1 = np.quantile(vals, 0.25)
+        print(lv1, lv2)
 
         #plot with thresolds
         fig, ax = plt.subplots(dpi = 200)
@@ -1221,8 +1222,7 @@ class Analysis:
         ax.set_ylabel('Frequency')
         ax.set_title('Distribution of Susceptibility values in annual burned areas', fontweight = 'bold', fontsize = 10)
 
-
-        _vals = {'lv1' : lv1[0], 'lv2' : lv2[0]}
+        _vals = {'lv1' : lv1, 'lv2' : lv2}
         # save vals
         Basics().save_dict_to_json(_vals, outfile)
 
