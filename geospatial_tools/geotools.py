@@ -7,14 +7,13 @@ import numpy as np
 import os
 import time
 from rasterio import features
+from rasterio.warp import reproject, Resampling
 from matplotlib import pyplot as plt
 from scipy import ndimage
 from scipy.stats import gaussian_kde
 import pandas as pd
 import json
-from osgeo import gdal
-from osgeo.gdal import Polygonize
-from osgeo.gdal import ogr
+# from osgeo import gdal
 import geopandas as gpd
 from rasterio.mask import mask
 from rasterio.merge import merge 
@@ -83,23 +82,51 @@ class Raster:
             with rio.open(output_file, 'w', **profile) as dst:
                 dst.write(array)    
                 
-    def reproject_raster_as(self, input_file: str, output_file: str, reference_file: str) -> str:
-        '''
-        reproj and clip raster based on reference file
-        '''
+    # def reproject_raster_as(self, input_file: str, output_file: str, reference_file: str) -> str:
+    #     '''
+    #     reproj and clip raster based on reference file
+    #     '''
 
-        with rio.open(input_file) as file_i:
-            input_crs = file_i.crs
-            #bounds = haz.bounds
-        with rio.open(reference_file) as ref:
-            bounds = ref.bounds
-            res = ref.transform[0]
-            output_crs = ref.crs
+    #     with rio.open(input_file) as file_i:
+    #         input_crs = file_i.crs
+    #         #bounds = haz.bounds
+    #     with rio.open(reference_file) as ref:
+    #         bounds = ref.bounds
+    #         res = ref.transform[0]
+    #         output_crs = ref.crs
     
-        gdal.Warp(output_file, input_file,
-                        outputBounds = bounds, xRes=res, yRes=res,
-                        srcSRS = input_crs, dstSRS = output_crs, dstNodata = -9999,
-                        creationOptions=["COMPRESS=LZW", "PREDICTOR=2", "ZLEVEL=3", "BLOCKXSIZE=512", "BLOCKYSIZE=512"])    
+    #     gdal.Warp(output_file, input_file,
+    #                     outputBounds = bounds, xRes=res, yRes=res,
+    #                     srcSRS = input_crs, dstSRS = output_crs, dstNodata = -9999,
+    #                     creationOptions=["COMPRESS=LZW", "PREDICTOR=2", "ZLEVEL=3", "BLOCKXSIZE=512", "BLOCKYSIZE=512"])    
+        
+    #     return output_file
+
+    def reproject_raster_as(input_file: str, output_file: str, reference_file: str, method = Resampling.nearest) -> str:
+        
+        with rio.open(reference_file) as ref:
+            with rio.open(input_file) as src:       
+                kwargs = src.meta.copy()     
+                kwargs.update({
+                    'crs': ref.crs,
+                    'transform': ref.transform,
+                    'width': ref.width,
+                    'height': ref.height})
+            
+                with rio.open(output_file, 'w', **kwargs) as dst:
+                    for _band in range(1, src.count + 1):
+                        reproject(
+                            source=rio.band(src, _band),
+                            destination=rio.band(dst, _band),
+                            src_transform=src.transform,
+                            src_crs=src.crs,
+                            dst_transform=ref.transform,
+                            dst_crs=ref.crs,
+                            resampling = method
+                        )
+
+        # overwrite file with compressed one
+        Raster().save_raster_as(rio.open(output_file).read(1), output_file, reference_file)
         
         return output_file
         
@@ -212,6 +239,10 @@ class Raster:
         '''
         calculate the distance af each pixel to the nearest valid one in the raster
         '''
+        try:
+            from osgeo import gdal
+        except ImportError:
+            import gdal
 
         src_ds = gdal.Open(raster_file)
         srcband=src_ds.GetRasterBand(1)
@@ -489,6 +520,16 @@ class Gdf:
         return df
 
     def polygonize(self, path_i: str, path_o: str, name = "polygonized") -> str:
+
+        try:
+            from osgeo import gdal
+            from osgeo.gdal import Polygonize
+            from osgeo.gdal import ogr
+        except ImportError:
+            print('osgeo not found, trying importing gdal direclty')
+            import gdal
+            from gdal import Polygonize
+            from gdal import ogr
 
         sourceRaster = gdal.Open(path_i)
         band = sourceRaster.GetRasterBand(1)
@@ -1270,6 +1311,171 @@ class Analysis:
         os.makedirs(outfolderpath, exist_ok = True)
         X_train.to_file(f'{outfolderpath}/X_train_coords.shp')
         X_test.to_file(f'{outfolderpath}/X_test_coords.shp')
+
+    def plot_haz_with_bars(self, fires_file: str | gpd.GeoDataFrame | None, fires_col: str, crs:str, hazard_path: str, 
+                            xboxmin_hist: float, yboxmin_hist: float, xboxmin_pie: float, yboxmin_pie: float,
+                            out_folder: str, year: int = 'Present', month=None,
+                            season = False, haz_nodata = 0, pixel_to_ha_factor = 1,
+                            allow_hist = True, allow_pie = True, allow_fires = True) -> plt.figure:
+        
+        '''
+        Plot susceptibility map categorized with fires and histogram and pie showing statistics.
+        fires analysis can be excluded if fires_file is None
+        fires plot, histogram and pie can be removed tuning allow_* parameters
+        xboxmin and yboxmin define the position of histogram and pie in the figure
+        threshold1 and 2 are the thresholds for categorization of suscpetibility 
+        total_ba_period: total burned area in a period at choice, 
+        the percentage of ba per each histogram bar will be computed w.r.t this number as additional info
+        pixel_to_ha_factor: conversion from pixel resolution to hectar, if res is 100m factor is 1
+        '''
+
+        gtras = Raster()
+
+        def histogram(stats, ax):
+            '''
+            create bar plot with the stats of burned area per susceptibility class
+            '''
+
+            b = ax.bar(stats['class'], stats.num_of_burned_pixels, width = 0.3, color = 'brown')
+            # eliminate axes visiblity 
+            ax.spines['top'].set_visible(False)
+            ax.spines['right'].set_visible(False)
+            # ax.spines['left'].set_visible(False)
+            # ax.set_yticks([])
+            ax.set_xticks(stats['class'])
+            alllabels = list(range(1,13))
+            labels = [i for i in stats['class']]
+            ax.set_xticklabels(labels)
+            ax.tick_params(axis='x', labelsize = 9)
+            ax.tick_params(axis='y', labelsize = 8)
+            ax.annotate('Burned area per Hazard class [ha]', xytext =  (-0.05, 1.2),
+                        xy = (-0.05, 1.2), fontsize = 7, fontweight = 'bold', xycoords = 'axes fraction')
+
+            # for v, y in zip(stats.num_of_burned_pixels, stats['class']):
+            #     c = 1.05
+            #     ax.annotate(f'{v:,}', xy = (y, v*c), xytext = (y, v*c), 
+            #                 ha = 'center', va = 'bottom', fontsize = 8, fontweight = 'bold',
+            #                 color = 'black', zorder = 15)
+                
+            ax.set_xlim(0.5, 12.5)
+
+            return ax
+            
+        def pie(ax, haz_arr, haz_nodata, pixel_to_ha_factor):
+            '''
+            create pie plot with the extent of susc classes
+            '''
+            # count the number of pixels per class
+            labels, counts = np.unique(haz_arr[haz_arr != haz_nodata], return_counts = True)
+            counts = counts * pixel_to_ha_factor
+            percentage = counts/counts.sum() * 100
+            percentage_format = [f'{p:.0f}%' for p in percentage]
+            all_colors = {"1": "#99ff99", "2": "#00ff00", "3": "#006600", "4": "#ffff99", "5": "#ffff00", "6": "#cc9900", "7": "#cc99ff",
+                        "8": "#9933cc", "9": "#660099", "10": "#f55b5b", "11": "#ff0000", "12": "#990000"}
+            colors = [all_colors[str(label)] for label in labels]
+            explode_funz = lambda x: 0.1 if x >10 else 0.22
+            explode = [explode_funz(p) for p in percentage]
+            ax.pie(counts, labels = percentage_format,  startangle=90, #autopct='%1.0f%%',
+                    colors = colors, 
+                    textprops={'color':"black", 'size': 6.2, 'weight':'bold'},
+                    explode = explode,
+                    # increase distance of labels
+                    labeldistance = 1.12,
+                    )
+                    
+            
+            spines = ['top', 'right', 'left', 'bottom']
+            for s in spines:
+                ax.spines[s].set_visible(False)
+
+            ax.set_yticks([])
+            ax.set_xticks([])
+
+            return ax
+        
+        if fires_file is not None:
+            # if file is string, read it
+            if isinstance(fires_file, str): 
+                fires = gpd.read_file(fires_file)
+                # filter only from: 2008 
+                fires[fires_col] = pd.to_datetime(fires[fires_col])
+            else:
+                fires = fires_file
+            
+            fires = fires.to_crs(crs)
+
+            annualfire = fires[(fires[fires_col].dt.year == year)] if year != 'Present' else fires.copy()
+            if season == True:
+                months = list(range(4,11)) if month == 1 else list(range(1, 4)) + list(range(11, 13)) 
+                annualfire = annualfire[(annualfire[fires_col].dt.month.isin(months))] 
+            else:
+                annualfire = annualfire[(annualfire[fires_col].dt.month == month)] if month is not None else annualfire
+        
+        annualsusc = rio.open(hazard_path)
+
+        fig, ax = plt.subplots(figsize=[12,10], dpi = 250)
+
+        allow_fires = False if fires_file is None else allow_fires
+        if allow_fires:
+            if len(annualfire) != 0:
+                annualfire.plot(ax = ax, edgecolor = 'black', linewidth = 0.9, facecolor = 'none')
+
+        month_label = "" if month is None else 'Summer' if month == 1 and season == True else 'Winter' if month == 2 and season == True else month 
+        month_labels_dict = {1: 'Jan', 2: 'Feb', 3: 'Mar', 4: 'Apr', 5: 'May', 6: 'Jun', 7: 'Jul', 8: 'Aug', 9: 'Sep', 10: 'Oct', 11: 'Nov', 12: 'Dec'}
+        if isinstance(month_label, int):
+            month_label = month_labels_dict[month_label]
+        fig, ax = gtras.plot_raster(annualsusc,
+                                    add_to_ax = (fig, ax), 
+                                    # define the settings for discrete plotting
+                                    array_classes = np.arange(-1, 13) + 0.1,
+                                    array_colors = ["#99ff9900","#99ff99", "#00ff00", "#006600", "#ffff99",
+                                                    "#ffff00", "#cc9900", "#cc99ff", "#9933cc", "#660099",
+                                                    "#f55b5b", "#ff0000", "#990000"],
+                                    array_names = [ " Not burnable",
+                                                "Low intensity surface fires\n with low likelihood",
+                                                "Low intensity surface fires\n with medium likelihood",
+                                                "Low intensity surface fires\n with high likelihood",
+                                                "Medium intensity forest fires\n with low likelihood (broadleaves forests)",
+                                                "Medium intensity forest fires\n with medium likelihood (broadleaves forests)",
+                                                "Medium intensity forest fires\n with high likelihood (broadleaves forests)",
+                                                "High intensity bushfire\n with low likelihood",
+                                                "High intensity bushfire\n with medium likelihood",
+                                                "High intensity bushfire\n with high likelihood",
+                                                "High intensity forest fires\n with low likelihood (coniferous forests)",
+                                                "High intensity forest fires\n with medium likelihood (coniferous forests)",
+                                                "High intensity forest fires\n with high likelihood (coniferous forests)"
+                                            ],
+                                    title = f'Hazard {year} {month_label}',
+                                    shrink_legend=0.5,
+                                )
+        allow_hist = False if fires_file is None else allow_hist
+        if allow_hist:
+            if len(annualfire):
+
+                ax1 = fig.add_axes([xboxmin_hist, yboxmin_hist, 0.18, 0.11])  # left, bottom, width, height
+                haz_arr = annualsusc.read(1) 
+                                        
+            
+                stats = gtras.raster_stats_in_polydiss(haz_arr, annualfire, reference_file = hazard_path)
+                stats['num_of_burned_pixels'] = stats.num_of_burned_pixels * pixel_to_ha_factor
+                # insert the plot in the same figure and separate axes
+                ax1 = histogram(stats, ax1)
+        
+        if allow_pie:
+            try:
+                haz_arr.shape
+            except:
+                haz_arr = annualsusc.read(1) 
+
+            #plot pie chart with classes extent
+            ax2 = fig.add_axes([xboxmin_pie, yboxmin_pie, 0.18, 0.18])
+            ax2 = pie(ax2, haz_arr, haz_nodata, pixel_to_ha_factor)
+
+        os.makedirs(out_folder, exist_ok = True)
+        n = f'haz_plot_{year}{month}.png' if month is not None else f'haz_plot_{year}.png'
+        fig.savefig(f'/{out_folder}/{n}', dpi = 200, bbox_inches = 'tight')
+
+        return fig
 
 # %%
 
