@@ -1336,7 +1336,7 @@ class Analysis:
             create bar plot with the stats of burned area per susceptibility class
             '''
 
-            b = ax.bar(stats['class'], stats.num_of_burned_pixels, width = 0.3, color = 'brown')
+            b = ax.bar(stats['class'], stats.percentage, width = 0.3, color = 'brown')
             # eliminate axes visiblity 
             ax.spines['top'].set_visible(False)
             ax.spines['right'].set_visible(False)
@@ -1348,14 +1348,9 @@ class Analysis:
             ax.set_xticklabels(labels)
             ax.tick_params(axis='x', labelsize = 9)
             ax.tick_params(axis='y', labelsize = 8)
-            ax.annotate('Burned area per Hazard class [ha]', xytext =  (-0.05, 1.2),
+            ax.annotate('Burned area per Hazard class [% w.r.t. class extent]', xytext =  (-0.05, 1.2),
                         xy = (-0.05, 1.2), fontsize = 7, fontweight = 'bold', xycoords = 'axes fraction')
 
-            # for v, y in zip(stats.num_of_burned_pixels, stats['class']):
-            #     c = 1.05
-            #     ax.annotate(f'{v:,}', xy = (y, v*c), xytext = (y, v*c), 
-            #                 ha = 'center', va = 'bottom', fontsize = 8, fontweight = 'bold',
-            #                 color = 'black', zorder = 15)
                 
             ax.set_xlim(0.5, 12.5)
 
@@ -1458,6 +1453,12 @@ class Analysis:
             
                 stats = gtras.raster_stats_in_polydiss(haz_arr, annualfire, reference_file = hazard_path)
                 stats['num_of_burned_pixels'] = stats.num_of_burned_pixels * pixel_to_ha_factor
+                print(stats.columns)
+                extents = list()
+                for _class in stats['class']:
+                    extents.append( np.where(haz_arr == _class, 1, 0).sum() * pixel_to_ha_factor)
+                stats['extents'] = extents
+                stats['percentage'] = stats['num_of_burned_pixels'] / stats['extents'] * 100
                 # insert the plot in the same figure and separate axes
                 ax1 = histogram(stats, ax1)
         
@@ -1476,6 +1477,7 @@ class Analysis:
         fig.savefig(f'/{out_folder}/{n}', dpi = 200, bbox_inches = 'tight')
 
         return fig
+
 
 # %%
 
