@@ -1021,7 +1021,8 @@ class Analysis:
                             xboxmin_hist: float, yboxmin_hist: float, xboxmin_pie: float, yboxmin_pie: float,
                             threshold1: float, threshold2: float, out_folder: str, year: int = 'Present', month=None,
                             season = False, total_ba_period = None, susc_nodata = -1, pixel_to_ha_factor = 1,
-                            allow_hist = True, allow_pie = True, allow_fires = True) -> tuple:
+                            allow_hist = True, allow_pie = True, allow_fires = True,
+                            normalize_over_y_axis: int | None = 20, limit_barperc_to_show: int = 0) -> tuple:
         
         '''
         Plot susceptibility map categorized with fires and histogram and pie showing statistics.
@@ -1032,6 +1033,8 @@ class Analysis:
         total_ba_period: total burned area in a period at choice, 
         the percentage of ba per each histogram bar will be computed w.r.t this number as additional info
         pixel_to_ha_factor: conversion from pixel resolution to hectar, if res is 100m factor is 1
+        if allow hist is true, normalize_over_y_axis define the max bar hight wrt total_ba_period \n
+        while limit_barperc_to_show is the limit percentage value to show inside the bar
         '''
 
         gtras = Raster()
@@ -1041,7 +1044,7 @@ class Analysis:
             create bar plot with the stats of burned area per susceptibility class
             '''
 
-            b = ax.bar(stats['class'], stats.num_of_burned_pixels, width = 0.4, color = 'brown')
+            b = ax.bar(stats['class'], stats.num_of_burned_pixels, width = 0.4, color = 'brown') 
             # eliminate axes visiblity 
             ax.spines['top'].set_visible(False)
             ax.spines['right'].set_visible(False)
@@ -1063,11 +1066,15 @@ class Analysis:
                 
                 if total_ba_period is not None:
                     perc = (v/total_ba_period) * 100
-                    ax.annotate(f'{perc:.0f}%', xy = (y, v/2), xytext = (y, v/2), 
-                                ha = 'center', va = 'bottom', fontsize = 6, fontweight = 'bold',
-                                color = 'white', zorder = 15)
+                    if perc > limit_barperc_to_show:
+                        ax.annotate(f'{perc:.0f}%', xy = (y, v/2), xytext = (y, v/2), 
+                                    ha = 'center', va = 'bottom', fontsize = 6, fontweight = 'bold',
+                                    color = 'white', zorder = 15)
 
             ax.set_xlim(0.5, 3.5)
+            if total_ba_period is not None:
+                if normalize_over_y_axis is not None:
+                    ax.set_ylim(0, normalize_over_y_axis * total_ba_period /100)
 
             return ax
             
@@ -1336,7 +1343,7 @@ class Analysis:
             create bar plot with the stats of burned area per susceptibility class
             '''
 
-            b = ax.bar(stats['class'], stats.percentage, width = 0.3, color = 'brown')
+            b = ax.bar(stats['class'], stats.percentage, width = 0.4, color = 'brown') #0.4
             # eliminate axes visiblity 
             ax.spines['top'].set_visible(False)
             ax.spines['right'].set_visible(False)
