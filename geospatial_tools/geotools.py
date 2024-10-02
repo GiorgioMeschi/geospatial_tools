@@ -63,6 +63,34 @@ class Raster:
                 dst.write(array.astype(profile['dtype']), 1)
             
         return output_file
+    
+    def create_topographic_vars(self, dem_path: str, out_dir: str):
+        
+        try:
+            from osgeo import gdal
+        except ImportError:
+            import gdal
+
+        temp_slope = os.path.join(out_dir, 'slope.tif')
+        temp_aspect = os.path.join(out_dir, 'aspect.tif')
+        
+    
+        ds1 = gdal.DEMProcessing(temp_slope, dem_path, 'slope')
+        ds1 = gdal.DEMProcessing(temp_slope, dem_path, 'slope')
+        ds2 = gdal.DEMProcessing(temp_aspect, dem_path, 'aspect')
+        ds2 = gdal.DEMProcessing(temp_aspect, dem_path, 'aspect')
+        with rio.open(temp_slope) as slope:
+            slope_arr = slope.read(1)
+            
+        with rio.open(temp_aspect) as aspect:
+            aspect_arr = aspect.read(1)
+            northing_arr = np.cos(aspect_arr * np.pi/180.0)
+            easting_arr = np.sin(aspect_arr * np.pi/180.0)
+            
+        ds1 = None
+        ds2 = None
+            
+        return slope_arr, northing_arr, easting_arr
 
     def save_raster_multiband(self, array: np.array, output_file: str, reference_file: str, band_num: int, **kwargs):
         
@@ -310,7 +338,8 @@ class Raster:
 
     def remap_raster(self, array: np.array, mapping: dict, nodata = 0) -> np.array:
         '''
-        reclassify an array with numpy, make sure all input classes are defined in the mapping table, othewise assertion error will be raised
+        reclassify an array with numpy, make sure all input classes are defined in the mapping table, 
+        othewise assertion error will be raised
         passed nodata will be mapped with 0
         '''
         
@@ -318,8 +347,8 @@ class Raster:
         output_codes = [ int(i) for i in mapping.values() ]
   
         # add codification for no data:0
-        output_codes.extend([nodata])
-        input_codes.extend([0])
+        output_codes.extend([0]) # [nodata]
+        input_codes.extend([nodata])
 
         # convert numpy array
         input_codes_arr = np.array(input_codes)
