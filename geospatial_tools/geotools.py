@@ -1098,6 +1098,7 @@ class Analysis:
 
             for v, y in zip(stats.num_of_burned_pixels, stats['class']):
                 c = 1.05
+                v = int(r)
                 ax.annotate(f'{v:,}', xy = (y, v*c), xytext = (y, v*c), 
                             ha = 'center', va = 'bottom', fontsize = 8, fontweight = 'bold',
                             color = 'black', zorder = 15)
@@ -1364,7 +1365,7 @@ class Analysis:
                             allow_hist = True, allow_pie = True, allow_fires = True) -> plt.figure:
         
         '''
-        Plot susceptibility map categorized with fires and histogram and pie showing statistics.
+        Plot hazard map categorized with fires and histogram and pie showing statistics.
         fires analysis can be excluded if fires_file is None
         fires plot, histogram and pie can be removed tuning allow_* parameters
         xboxmin and yboxmin define the position of histogram and pie in the figure
@@ -1444,7 +1445,7 @@ class Analysis:
             
             fires = fires.to_crs(crs)
 
-            annualfire = fires[(fires[fires_col].dt.year == year)] if year != 'Present' else fires.copy()
+            annualfire = fires[(fires[fires_col].dt.year == year)] if isinstance(year, int) else fires.copy()
             if season == True:
                 months = list(range(4,11)) if month == 1 else list(range(1, 4)) + list(range(11, 13)) 
                 annualfire = annualfire[(annualfire[fires_col].dt.month.isin(months))] 
