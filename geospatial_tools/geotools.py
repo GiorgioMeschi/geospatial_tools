@@ -1149,7 +1149,7 @@ class Analysis:
             
             fires = fires.to_crs(crs)
 
-            annualfire = fires[(fires[fires_col].dt.year == year)] if year != 'Present' else fires.copy()
+            annualfire = fires[(fires[fires_col].dt.year == year)] if isinstance(year, int) else fires.copy()
             if season == True:
                 months = list(range(4,11)) if month == 1 else list(range(1, 4)) + list(range(11, 13)) 
                 annualfire = annualfire[(annualfire[fires_col].dt.month.isin(months))] 
