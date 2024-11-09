@@ -1098,7 +1098,7 @@ class Analysis:
 
             for v, y in zip(stats.num_of_burned_pixels, stats['class']):
                 c = 1.05
-                v = int(r)
+                v = int(v)
                 ax.annotate(f'{v:,}', xy = (y, v*c), xytext = (y, v*c), 
                             ha = 'center', va = 'bottom', fontsize = 8, fontweight = 'bold',
                             color = 'black', zorder = 15)
