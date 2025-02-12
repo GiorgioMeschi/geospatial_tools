@@ -5,6 +5,8 @@ import geopandas as gpd
 import pandas as pd
 import numpy as np
 import rasterio as rio
+from rasterio.mask import mask as riomask
+
 
 from geospatial_tools.raster import Raster
 from geospatial_tools.basics import Basics
@@ -171,6 +173,46 @@ class FireTools:
 
         return fig, ax
 
+    def add_avg_trend_to_fig(self, fig, years: list[int], avg_arrs: np.array, year:int, 
+                            xboxmin = 0.68, yboxmin = 0.08):
+
+        '''
+        add optional average susceptibility trend over the time window considered
+
+        fig: input matplotlib figure
+        years: list of years
+        avg_arrs: array of average susceptibility values 
+        year: selected year
+        xboxmin: x position of the box
+        yboxmin: y position of the box
+
+        return the new figure
+        '''
+
+        # plot trend of average susc adding as new axis
+        ax3 = fig.add_axes([xboxmin, yboxmin, 0.12, 0.11])
+        ax3.plot(years, avg_arrs, color = 'lightblue')
+        title = 'Trend of average susceptibility'
+        ax3.annotate(title, xytext =  (-0.1, 1.2),
+                    xy = (-0.05, 1.2), fontsize = 7, fontweight = 'bold', xycoords = 'axes fraction')
+
+        # off right and top 
+        ax3.spines['top'].set_visible(False)
+        ax3.spines['right'].set_visible(False)
+        # x ticks off
+        ax3.set_xticks(years)
+
+        # change color of the edge of the marker
+        ax3.plot(year, avg_arrs[years.index(year)], marker = '*', color = 'yellow', markersize = 10, markeredgecolor = 'black')
+        # add ticks label only for the first, selected and last years
+        ax3.set_xticklabels(years, rotation = 45, fontsize = 7)
+        # make some years labels disappear
+        for i, label in enumerate(ax3.get_xticklabels()):
+            if i not in [0, years.index(year), len(years)-1]:
+                label.set_visible(False)
+
+        return fig 
+
     def hazard_12cl_assesment(self, susc_path: str, thresholds: list, veg_path: str, mapping_path: str, out_hazard_file: str) -> tuple:
         '''
         susc path is the susceptibility file, contineous values, no data -1
@@ -198,11 +240,17 @@ class FireTools:
         
         return hazard, susc_cl, ft
     
-    def eval_annual_susc_thresholds(countries: list[str], years, folder_before_country: str, folder_after_country: str,
+    def eval_annual_susc_thresholds(self, countries: list[str], years, 
+                                folder_before_country: str, folder_after_country: str,
                                 fires_paths: str, name_susc_without_year: str = 'Annual_susc_', 
                                 year_fires_colname: str = 'finaldate', crs = 'EPSG:3035'):
 
         '''
+        compute trasholds on annual wildfire susceptibilities: 
+        # compute annual 90% and 1% values on the burnead area susceptibility values distribution
+        # tr 1: min of 1% values of the years above average burned area 
+        # tr 2: min of 90% values of the years above average burned area  
+
         annual susceptibilities have this structure path:
         f'{folder_before_country}/{country}/{folder_after_country}/{name_susc_without_year}{year}.tif'
         fire_path is this one:
@@ -231,7 +279,7 @@ class FireTools:
                 fires = fires.to_crs(crs)
                 if len(fires) != 0:
                     susc = rio.open(path)
-                    susc_clip, _ = mask(susc, fires.geometry, nodata = -1)
+                    susc_clip, _ = riomask(susc, fires.geometry, nodata = -1)
                     vals = list(susc_clip[susc_clip != -1])
                     vals_years.append(vals)
                     all_fires.append(fires)
@@ -241,7 +289,6 @@ class FireTools:
             all_fires_df['ba'] = all_fires_df.area / 10000 
             total_ba = all_fires_df['ba'].sum()
             ba_list.append(total_ba)
-
 
             # flat list
             vals_years = [item for sublist in vals_years for item in sublist]
@@ -256,7 +303,7 @@ class FireTools:
             low_vals_years.append(quntiles[0])
 
         avg_ba = np.mean(ba_list)
-        mask_over_treashold = [1 if ba > avg_ba else 0 for ba in ba_year]
+        mask_over_treashold = [1 if ba > avg_ba else 0 for ba in ba_list]
 
         # select values from high and  low vals
         mask = np.array(mask_over_treashold)
@@ -276,9 +323,9 @@ class FireTools:
         # min(high_val_over_tr)
         # max(low_val_under_tr)
 
-        threasholds = {'lv1' : lv1, 'lv2' : lv2}
+        thresholds = {'lv1' : lv1, 'lv2' : lv2}
 
-        return threasholds, high_vals_years, low_vals_years, ba_list
+        return thresholds, high_vals_years, low_vals_years, ba_list
     
     def plot_training_and_test_dfs(self, X_training_p: str, X_test_p: str, Y_training_p:str, Y_test_p:str, cols: list, outfolderpath: str):
 
