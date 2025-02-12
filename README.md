@@ -9,7 +9,7 @@ python -m pip install --no-cache-dir -U git+https://github.com/GiorgioMeschi/geo
 please note you will need to install gdal
 
 # imports 
-import 5 main modules 
+import main modules 
 
 ```python
 
@@ -21,6 +21,8 @@ gtgdf = gt.Gdf()    # tools for dealing with dataframe and geodataframe
 gtim = gt.Imtools() # some useful function related to plotting
 gts = gt.Basics()   # a pool of basics tools using toolz library 
 
+from geospatial_tools import ff_tools
+fft = FireTools()
 
 ```
 
