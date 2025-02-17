@@ -268,7 +268,7 @@ class Raster:
                 shapes = ( (geom, 1) for geom in [gdf.geometry] )
                 print(shapes)
                 
-        burned = features.rasterize(shapes=shapes, fill=np.NaN, out=out_array, transform=mytransform, all_touched = all_touched)
+        burned = features.rasterize(shapes=shapes, fill=np.nan, out=out_array, transform=mytransform, all_touched = all_touched)
 
         return burned
     
@@ -594,18 +594,18 @@ class Gdf:
             with rio.open(raster_file) as raster:
                 geom = gpd.GeoSeries(gdf.loc[idx].geometry, name = 'geometry')
                 try:
-                    adm, _= mask(raster, geom, crop = True, nodata = np.NaN)
+                    adm, _= mask(raster, geom, crop = True, nodata = np.nan)
                 except TypeError:
                     adm, _= mask(raster, geom, crop = True, nodata = 0)
                     adm = adm.astype(int)
-                    adm = np.where(adm == 0, np.NaN, adm)
+                    adm = np.where(adm == 0, np.nan, adm)
                 if mode == 'mean':
                     result = np.nanmean(adm)
                 elif mode == 'most_frequent':
                     try:
                         result = np.argmax(np.bincount(adm[~np.isnan(adm)].astype(int)))
                     except ValueError: # empty sequence
-                        result = np.NaN
+                        result = np.nan
                 elif mode == 'sum':
                     result = np.nansum(adm)
                 elif mode == 'max':
