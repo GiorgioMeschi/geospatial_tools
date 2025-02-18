@@ -7,9 +7,8 @@ import numpy as np
 import rasterio as rio
 from rasterio.mask import mask as riomask
 
+from geospatial_tools import geotools as gt
 
-from geospatial_tools.raster import Raster
-from geospatial_tools.basics import Basics
 
 
 @dataclass
@@ -39,7 +38,7 @@ class FireTools:
         while limit_barperc_to_show is the limit percentage value to show inside the bar
         '''
 
-        gtras = Raster()
+        gtras = gt.Raster()
 
         def histogram(stats, ax, total_ba_period):
             '''
@@ -225,7 +224,7 @@ class FireTools:
         Return: wildfire hazard, susc classes and fuel type array
         '''
 
-        gtras = Raster()
+        gtras = gt.Raster()
         matrix = np.array([ [1, 4, 7, 10],
                             [2, 5, 8, 11],
                             [3, 6, 9, 12]])
@@ -387,7 +386,7 @@ class FireTools:
         pixel_to_ha_factor: conversion from pixel resolution to hectar, if res is 100m factor is 1
         '''
 
-        gtras = Raster()
+        gtras = gt.Raster()
 
         def histogram(stats, ax):
             '''
