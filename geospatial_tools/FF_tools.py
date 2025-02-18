@@ -7,6 +7,7 @@ import pandas as pd
 import numpy as np
 import rasterio as rio
 from rasterio.mask import mask as riomask
+import json
 from dataclasses import dataclass
 
 from geospatial_tools import geotools as gt
