@@ -48,6 +48,8 @@ class Raster:
             
             profile['compress'] = 'lzw'
             profile['tiled'] =  'True'
+            profile['blockxsize'] = 256
+            profile['blockysize'] = 256
     
             profile.update(**kwargs)
                   
@@ -441,7 +443,7 @@ class Raster:
         out, trans = merge(ras, nodata = nodata)
         Raster().save_raster_as(out, 
                     out_path, raster_paths[0],
-                    height = out.shape[1], width = out.shape[2], transform = trans)
+                    height = out.shape[1], width = out.shape[2], transform = trans,)
         
         return out_path
 
