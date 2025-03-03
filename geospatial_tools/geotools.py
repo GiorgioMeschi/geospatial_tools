@@ -437,10 +437,10 @@ class Raster:
 
         return df   
     
-    def merge_rasters(self, out_path: str, nodata: float, *raster_paths) -> str: # define no data
+    def merge_rasters(self, out_path: str, nodata: float, method, *raster_paths) -> str: # define no data
         
         ras = [rio.open(i) for i in raster_paths]
-        out, trans = merge(ras, nodata = nodata)
+        out, trans = merge(ras, nodata = nodata, method = method)
         Raster().save_raster_as(out, 
                     out_path, raster_paths[0],
                     height = out.shape[1], width = out.shape[2], transform = trans,)
