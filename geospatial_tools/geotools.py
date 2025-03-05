@@ -137,7 +137,7 @@ class Raster:
         
         return output_file
 
-    def reproject_raster_as(input_file: str, output_file: str, reference_file: str, method = Resampling.nearest) -> str:
+    def reproject_raster_as(self, input_file: str, output_file: str, reference_file: str, method = Resampling.nearest) -> str:
         
         '''
         reproj and clip raster based on reference file using rasterio
