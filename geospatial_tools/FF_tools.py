@@ -245,7 +245,7 @@ class FireTools:
     def eval_annual_susc_thresholds(self, countries: list[str], years, 
                                 folder_before_country: str, folder_after_country: str,
                                 fires_paths: str, name_susc_without_year: str = 'Annual_susc_', 
-                                year_fires_colname: str = 'finaldate', crs = 'EPSG:3035'):
+                                year_fires_colname: str = 'finaldate', crs = 'EPSG:3035', year_in_name = True):
 
         '''
         compute trasholds on annual wildfire susceptibilities: 
@@ -255,10 +255,12 @@ class FireTools:
 
         annual susceptibilities have this structure path:
         f'{folder_before_country}/{country}/{folder_after_country}/{name_susc_without_year}{year}.tif'
+        if year_in_name is Fakse the year is excluded in the filename
         fire_path is this one:
         f'{folder_before_country}/{country}/{fires_paths}'
         average susceptibility has this path:
         f'{folder_before_country}/{country}/{path_after_country_avg_susc}'
+
         
         return threasholds dict, high_vals_years list, low_vals_years list, ba_list
         '''
@@ -272,7 +274,10 @@ class FireTools:
             vals_years = list()
             all_fires = []
             for country in countries:
-                country_paths_to_check = f'{folder_before_country}/{country}/{folder_after_country}/{name_susc_without_year}{year}.tif'
+                if year_in_name == True:
+                    country_paths_to_check = f'{folder_before_country}/{country}/{folder_after_country}/{name_susc_without_year}{year}.tif'
+                else:
+                    country_paths_to_check = f'{folder_before_country}/{country}/{folder_after_country}/{name_susc_without_year}.tif'
                 path = country_paths_to_check
                 fire_p = f'{folder_before_country}/{country}/{fires_paths}'
                 fires = gpd.read_file(fire_p)
@@ -287,7 +292,7 @@ class FireTools:
                     all_fires.append(fires)
 
             all_fires_df = pd.concat(all_fires)
-            all_fires_df= all_fires_df.to_crs('EPSG:3035')
+            all_fires_df= all_fires_df.to_crs(crs)
             all_fires_df['ba'] = all_fires_df.area / 10000 
             total_ba = all_fires_df['ba'].sum()
             ba_list.append(total_ba)
