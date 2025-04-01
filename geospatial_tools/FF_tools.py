@@ -245,7 +245,8 @@ class FireTools:
     def eval_annual_susc_thresholds(self, countries: list[str], years, 
                                 folder_before_country: str, folder_after_country: str,
                                 fires_paths: str, name_susc_without_year: str = 'Annual_susc_', 
-                                year_fires_colname: str = 'finaldate', crs = 'EPSG:3035', year_in_name = True):
+                                year_fires_colname: str = 'finaldate', crs = 'EPSG:3035', year_in_name = True,
+                                allow_plot = True):
 
         '''
         compute trasholds on annual wildfire susceptibilities: 
@@ -282,7 +283,12 @@ class FireTools:
                 fire_p = f'{folder_before_country}/{country}/{fires_paths}'
                 fires = gpd.read_file(fire_p)
                 fires[year_fires_colname] = pd.to_datetime(fires[year_fires_colname])
-                fires = fires[(fires[year_fires_colname].dt.year == year)]
+                if len(str(year)) == 4:
+                    fires = fires[(fires[year_fires_colname].dt.year == year)]
+                else:
+                    year, month = year.split('_')
+                    fires = fires[(fires[year_fires_colname].dt.year == int(year))]
+                    fires = fires[(fires[year_fires_colname].dt.month == int(month))]
                 fires = fires.to_crs(crs)
                 if len(fires) != 0:
                     susc = rio.open(path)
@@ -300,14 +306,16 @@ class FireTools:
             # flat list
             vals_years = [item for sublist in vals_years for item in sublist]
             quntiles = np.quantile(vals_years, [0.01, 0.1])
-            # plot vals_year with 2 vertical bars of quantiles:
-            fig, ax = plt.subplots(dpi = 200)
-            ax.hist(vals_years, bins = 50, color = 'blue')
-            ax.axvline(quntiles[0], color='green', linestyle='dashed', linewidth=1)
-            ax.axvline(quntiles[1], color='red', linestyle='dashed', linewidth=1)
-            ax.set_title(f'Distribution of Susceptibility values in annual burned areas {year}', fontweight = 'bold', fontsize = 10)
             high_vals_years.append(quntiles[1])
             low_vals_years.append(quntiles[0])
+
+            if allow_plot:
+                # plot vals_year with 2 vertical bars of quantiles:
+                fig, ax = plt.subplots(dpi = 200)
+                ax.hist(vals_years, bins = 50, color = 'blue')
+                ax.axvline(quntiles[0], color='green', linestyle='dashed', linewidth=1)
+                ax.axvline(quntiles[1], color='red', linestyle='dashed', linewidth=1)
+                ax.set_title(f'Distribution of Susceptibility values in annual burned areas {year}', fontweight = 'bold', fontsize = 10)
 
         avg_ba = np.mean(ba_list)
         mask_over_treashold = [1 if ba > avg_ba else 0 for ba in ba_list]
