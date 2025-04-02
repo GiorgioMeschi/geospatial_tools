@@ -297,25 +297,30 @@ class FireTools:
                     vals_years.append(vals)
                     all_fires.append(fires)
 
-            all_fires_df = pd.concat(all_fires)
-            all_fires_df= all_fires_df.to_crs(crs)
-            all_fires_df['ba'] = all_fires_df.area / 10000 
-            total_ba = all_fires_df['ba'].sum()
-            ba_list.append(total_ba)
+            if len(all_fires) != 0:
+                all_fires_df = pd.concat(all_fires)
+                all_fires_df= all_fires_df.to_crs(crs)
+                all_fires_df['ba'] = all_fires_df.area / 10000 
+                total_ba = all_fires_df['ba'].sum()
+                ba_list.append(total_ba)
 
-            # flat list
-            vals_years = [item for sublist in vals_years for item in sublist]
-            quntiles = np.quantile(vals_years, [0.01, 0.1])
-            high_vals_years.append(quntiles[1])
-            low_vals_years.append(quntiles[0])
+                # flat list
+                vals_years = [item for sublist in vals_years for item in sublist]
+                quntiles = np.quantile(vals_years, [0.01, 0.1])
+                high_vals_years.append(quntiles[1])
+                low_vals_years.append(quntiles[0])
 
-            if allow_plot:
-                # plot vals_year with 2 vertical bars of quantiles:
-                fig, ax = plt.subplots(dpi = 200)
-                ax.hist(vals_years, bins = 50, color = 'blue')
-                ax.axvline(quntiles[0], color='green', linestyle='dashed', linewidth=1)
-                ax.axvline(quntiles[1], color='red', linestyle='dashed', linewidth=1)
-                ax.set_title(f'Distribution of Susceptibility values in annual burned areas {year}', fontweight = 'bold', fontsize = 10)
+                if allow_plot:
+                    # plot vals_year with 2 vertical bars of quantiles:
+                    fig, ax = plt.subplots(dpi = 200)
+                    ax.hist(vals_years, bins = 50, color = 'blue')
+                    ax.axvline(quntiles[0], color='green', linestyle='dashed', linewidth=1)
+                    ax.axvline(quntiles[1], color='red', linestyle='dashed', linewidth=1)
+                    ax.set_title(f'Distribution of Susceptibility values in annual burned areas {year}', fontweight = 'bold', fontsize = 10)
+            else:
+                high_vals_years.append(0)
+                low_vals_years.append(0)
+                ba_list.append(0)
 
         avg_ba = np.mean(ba_list)
         mask_over_treashold = [1 if ba > avg_ba else 0 for ba in ba_list]
