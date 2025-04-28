@@ -314,6 +314,7 @@ class FireTools:
                     high_vals_years.append(0)
                     low_vals_years.append(0)
                     ba_list.append(0)
+                    print(year, 'skipped')
 
                 if allow_plot:
                     # plot vals_year with 2 vertical bars of quantiles:
@@ -326,6 +327,7 @@ class FireTools:
                 high_vals_years.append(0)
                 low_vals_years.append(0)
                 ba_list.append(0)
+                print(year, 'skipped')
 
         avg_ba = np.mean(ba_list)
         mask_over_treashold = [1 if ba > avg_ba else 0 for ba in ba_list]
