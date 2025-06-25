@@ -168,6 +168,22 @@ class Raster:
         Raster().save_raster_as(rio.open(output_file).read(1), output_file, reference_file)
         
         return output_file
+
+    def reproject_raster_as_v2(self, in_file: str, out_file: str, reference_file: str, 
+                               input_crs = 'EPSG:32632', working_crs = 'EPSG:4326', interpolation = 'near'):
+
+        with rio.open(reference_file) as ref:
+            bounds = ref.bounds
+            xres = ref.transform[0]  # Pixel width
+            yres = ref.transform[4]  # Pixel height
+
+        # forse input output crs to avoind gdal internal errors
+        os.system(
+            f'gdalwarp -s_srs {input_crs} -t_srs {working_crs} -te {bounds.left} {bounds.bottom} {bounds.right} {bounds.top} '
+            f'-tr {xres} {yres} -r {interpolation} -of GTiff '
+            f'-co COMPRESS=LZW -co TILED=YES -co BLOCKXSIZE=256 -co BLOCKYSIZE=256 '
+            f'{in_file} {out_file}'
+        )
         
     def plot_raster(self, raster, cmap = 'seismic', title = '', figsize = (10, 8), dpi = 300, outpath = None,
                     array_classes = [], array_colors = [], array_names = [], shrink_legend = 1, xy = (0.5, 1.1), labelsize = 10,
