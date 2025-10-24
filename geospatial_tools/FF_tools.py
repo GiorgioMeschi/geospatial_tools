@@ -399,7 +399,8 @@ class FireTools:
                             xboxmin_hist: float, yboxmin_hist: float, xboxmin_pie: float, yboxmin_pie: float,
                             out_folder: str, year: int = 'Present', month=None,
                             season = False, haz_nodata = 0, pixel_to_ha_factor = 1,
-                            allow_hist = True, allow_pie = True, allow_fires = True) -> plt.figure:
+                            allow_hist = True, allow_pie = True, allow_fires = True,
+                            show_compressed_legend = True) -> plt.figure:
         
         '''
         Plot hazard map categorized with fires and histogram and pie showing statistics.
@@ -502,6 +503,40 @@ class FireTools:
         month_labels_dict = {1: 'Jan', 2: 'Feb', 3: 'Mar', 4: 'Apr', 5: 'May', 6: 'Jun', 7: 'Jul', 8: 'Aug', 9: 'Sep', 10: 'Oct', 11: 'Nov', 12: 'Dec'}
         if isinstance(month_label, int):
             month_label = month_labels_dict[month_label]
+
+        # labels of the leged:
+        if show_compressed_legend:
+            array_names =[  "0",
+                            "1",
+                            "2",
+                            "3",
+                            "4",
+                            "5",
+                            "6",
+                            "7",
+                            "8",
+                            "9",
+                            "10",
+                            "11",
+                            "12"
+                        ]
+        else:
+            array_names = [ " Not burnable",
+                            "Low intensity surface fires\n with low likelihood",
+                            "Low intensity surface fires\n with medium likelihood",
+                            "Low intensity surface fires\n with high likelihood",
+                            "Medium intensity forest fires\n with low likelihood (broadleaves forests)",
+                            "Medium intensity forest fires\n with medium likelihood (broadleaves forests)",
+                            "Medium intensity forest fires\n with high likelihood (broadleaves forests)",
+                            "High intensity bushfire\n with low likelihood",
+                            "High intensity bushfire\n with medium likelihood",
+                            "High intensity bushfire\n with high likelihood",
+                            "High intensity forest fires\n with low likelihood (coniferous forests)",
+                            "High intensity forest fires\n with medium likelihood (coniferous forests)",
+                            "High intensity forest fires\n with high likelihood (coniferous forests)"
+                        ]
+
+        
         fig, ax = gtras.plot_raster(annualsusc,
                                     add_to_ax = (fig, ax), 
                                     # define the settings for discrete plotting
@@ -509,20 +544,7 @@ class FireTools:
                                     array_colors = ["#99ff9900","#99ff99", "#00ff00", "#006600", "#ffff99",
                                                     "#ffff00", "#cc9900", "#cc99ff", "#9933cc", "#660099",
                                                     "#f55b5b", "#ff0000", "#990000"],
-                                    array_names = [ " Not burnable",
-                                                "Low intensity surface fires\n with low likelihood",
-                                                "Low intensity surface fires\n with medium likelihood",
-                                                "Low intensity surface fires\n with high likelihood",
-                                                "Medium intensity forest fires\n with low likelihood (broadleaves forests)",
-                                                "Medium intensity forest fires\n with medium likelihood (broadleaves forests)",
-                                                "Medium intensity forest fires\n with high likelihood (broadleaves forests)",
-                                                "High intensity bushfire\n with low likelihood",
-                                                "High intensity bushfire\n with medium likelihood",
-                                                "High intensity bushfire\n with high likelihood",
-                                                "High intensity forest fires\n with low likelihood (coniferous forests)",
-                                                "High intensity forest fires\n with medium likelihood (coniferous forests)",
-                                                "High intensity forest fires\n with high likelihood (coniferous forests)"
-                                            ],
+                                    array_names = array_names,
                                     title = f'Hazard {year} {month_label}',
                                     shrink_legend=0.5,
                                 )
