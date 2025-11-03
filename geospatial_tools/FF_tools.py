@@ -26,7 +26,8 @@ class FireTools:
                             threshold1: float, threshold2: float, out_folder: str, year: int = 'Present', month=None,
                             season = False, total_ba_period = None, susc_nodata = -1, pixel_to_ha_factor = 1,
                             allow_hist = True, allow_pie = True, allow_fires = True,
-                            normalize_over_y_axis: int | None = 20, limit_barperc_to_show: int = 0) -> tuple:
+                            normalize_over_y_axis: int | None = 20, limit_barperc_to_show: int = 0,
+                            is_categorical = True) -> tuple:
         
         '''
         Plot susceptibility map categorized with fires and histogram and pie showing statistics.
@@ -135,23 +136,38 @@ class FireTools:
         month_labels_dict = {1: 'Jan', 2: 'Feb', 3: 'Mar', 4: 'Apr', 5: 'May', 6: 'Jun', 7: 'Jul', 8: 'Aug', 9: 'Sep', 10: 'Oct', 11: 'Nov', 12: 'Dec'}
         if isinstance(month_label, int):
             month_label = month_labels_dict[month_label]
-        fig, ax = gtras.plot_raster(annualsusc,
-                                    add_to_ax = (fig, ax), 
-                                    # define the settings for discrete plotting
-                                    array_classes = [-2, -0.5, threshold1, threshold2, 1],
-                                    array_colors = ['#0bd1f700','green', 'yellow', 'red'],
-                                    array_names = [ 'no data', 'Low', 'Medium', 'High'],
-                                    title = f'Susceptibility {year} {month_label}',
-                                    shrink_legend=0.4,
-                                )
+
+        if is_categorical:
+            fig, ax = gtras.plot_raster(annualsusc,
+                                        add_to_ax = (fig, ax), 
+                                        # define the settings for discrete plotting
+                                        array_classes = [0, 0.9, 1.1, 2.1, 3.1],
+                                        array_colors = ['#0bd1f700','green', 'yellow', 'red'],
+                                        array_names = [ 'no data', 'Low', 'Medium', 'High'],
+                                        title = f'Susceptibility {year} {month_label}',
+                                        shrink_legend=0.4,
+                                    )
+        else:
+            fig, ax = gtras.plot_raster(annualsusc,
+                                        add_to_ax = (fig, ax), 
+                                        # define the settings for discrete plotting
+                                        array_classes = [-2, -0.5, threshold1, threshold2, 1],
+                                        array_colors = ['#0bd1f700','green', 'yellow', 'red'],
+                                        array_names = [ 'no data', 'Low', 'Medium', 'High'],
+                                        title = f'Susceptibility {year} {month_label}',
+                                        shrink_legend=0.4,
+                                    )
         allow_hist = False if fires_file is None else allow_hist
         if allow_hist:
             if len(annualfire):
 
                 ax1 = fig.add_axes([xboxmin_hist, yboxmin_hist, 0.15, 0.13])  # left, bottom, width, height
-                susc_class = gtras.categorize_raster(annualsusc.read(1), 
-                                        thresholds = [threshold1, threshold2],
-                                        nodata = susc_nodata)
+                if is_categorical:
+                    susc_class = gtras.read_1band(susc_path)
+                else:
+                    susc_class = gtras.categorize_raster(annualsusc.read(1), 
+                                            thresholds = [threshold1, threshold2],
+                                            nodata = susc_nodata)
             
                 stats = gtras.raster_stats_in_polydiss(susc_class, annualfire, reference_file = susc_path)
                 stats['num_of_burned_pixels'] = stats.num_of_burned_pixels * pixel_to_ha_factor
@@ -162,9 +178,12 @@ class FireTools:
             try:
                 susc_class.shape
             except:
-                susc_class = gtras.categorize_raster(annualsusc.read(1), 
-                                                thresholds = [threshold1, threshold2],
-                                                nodata = susc_nodata)
+                if is_categorical:
+                    susc_class = gtras.read_1band(susc_path)
+                else:
+                    susc_class = gtras.categorize_raster(annualsusc.read(1), 
+                                                    thresholds = [threshold1, threshold2],
+                                                    nodata = susc_nodata)
 
             #plot pie chart with classes extent
             ax2 = fig.add_axes([xboxmin_pie, yboxmin_pie, 0.15, 0.15])
