@@ -564,7 +564,7 @@ class FireTools:
                                                     "#ffff00", "#cc9900", "#cc99ff", "#9933cc", "#660099",
                                                     "#f55b5b", "#ff0000", "#990000"],
                                     array_names = array_names,
-                                    title = f'Hazard {year} {month_label}',
+                                    title = f'Fuel Map {year} {month_label}',
                                     shrink_legend=0.5,
                                 )
         allow_hist = False if fires_file is None else allow_hist
