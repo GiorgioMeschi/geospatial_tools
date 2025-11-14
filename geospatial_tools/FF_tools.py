@@ -61,7 +61,7 @@ class FireTools:
             ax.set_yticks([])
             ax.set_xticks(stats['class'])
             l = options['array_names'][1:]
-            n = [i for i in enumerate(l, start=1)]
+            n = [i for i in range(1, len(l)+1)]
             alllabels = dict(zip(n, l))
             # alllabels = {1: 'Low', 2:'Medium', 3: 'High'}
             labels = [alllabels[i] for i in stats['class']]
