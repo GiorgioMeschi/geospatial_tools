@@ -7,7 +7,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="geospatial_tools",
-    version="2.0.1",
+    version="2.0.2",
     author="Giorgio Meschi",
     author_email="giorgio.meschi@cimafoundation.org",
     description="A pool of functions for geospatial analysis of raster and vector data.",

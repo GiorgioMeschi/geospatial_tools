@@ -27,7 +27,11 @@ class FireTools:
                             season = False, total_ba_period = None, susc_nodata = -1, pixel_to_ha_factor = 1,
                             allow_hist = True, allow_pie = True, allow_fires = True,
                             normalize_over_y_axis: int | None = 20, limit_barperc_to_show: int = 0,
-                            is_categorical = True) -> tuple:
+                            is_categorical = True,
+                            options = dict( array_classes = [0, 0.9, 1.1, 2.1, 3.1],
+                                            array_names = [ 'no data', 'Low', 'Medium', 'High'],
+                                            array_colors = ['#0bd1f700','green', 'yellow', 'red']),
+                            ) -> tuple:
         
         '''
         Plot susceptibility map categorized with fires and histogram and pie showing statistics.
@@ -56,7 +60,10 @@ class FireTools:
             ax.spines['left'].set_visible(False)
             ax.set_yticks([])
             ax.set_xticks(stats['class'])
-            alllabels = {1: 'Low', 2:'Medium', 3: 'High'}
+            l = options['array_names'][1:]
+            n = [i for i in enumerate(l, start=1)]
+            alllabels = dict(zip(n, l))
+            # alllabels = {1: 'Low', 2:'Medium', 3: 'High'}
             labels = [alllabels[i] for i in stats['class']]
             ax.set_xticklabels(labels)
             ax.tick_params(axis='x', labelsize = 9)
@@ -93,7 +100,7 @@ class FireTools:
             counts = counts * pixel_to_ha_factor
             percentage = counts/counts.sum() * 100
             ax.pie(counts, autopct='%1.0f%%', startangle=90, 
-                    colors = ['green', 'yellow', 'red'], 
+                    colors = options['array_colors'][1:], 
                     textprops={'color':"black", 'size': 9, 'weight':'bold'})
 
             spines = ['top', 'right', 'left', 'bottom']
@@ -141,9 +148,9 @@ class FireTools:
             fig, ax = gtras.plot_raster(annualsusc,
                                         add_to_ax = (fig, ax), 
                                         # define the settings for discrete plotting
-                                        array_classes = [0, 0.9, 1.1, 2.1, 3.1],
-                                        array_colors = ['#0bd1f700','green', 'yellow', 'red'],
-                                        array_names = [ 'no data', 'Low', 'Medium', 'High'],
+                                        array_classes = options['array_classes'],
+                                        array_colors = options['array_colors'],
+                                        array_names = options['array_names'],
                                         title = f'Susceptibility {year} {month_label}',
                                         shrink_legend=0.4,
                                     )
