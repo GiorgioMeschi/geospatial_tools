@@ -84,7 +84,7 @@ class FireTools:
                                     ha = 'center', va = 'bottom', fontsize = 6, fontweight = 'bold',
                                     color = 'white', zorder = 15)
 
-            ax.set_xlim(0.5, 3.5)
+            ax.set_xlim(0.5, max(n)+0.5)
             if total_ba_period is not None:
                 if normalize_over_y_axis is not None:
                     ax.set_ylim(0, normalize_over_y_axis * total_ba_period /100)
